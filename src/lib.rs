@@ -131,11 +131,6 @@ mod tests {
         // set host to dev server
         jsb.set_host("http://localhost:2223");
 
-        // let mut data = HashMap::new();
-
-        // data.insert("project", "jsonbank/sdk-test");
-        // data.insert("file", "index.json");
-
         let data = Data {
             project: "jsonbank/sdk-test",
             file: "index.json",
@@ -148,10 +143,8 @@ mod tests {
     fn get_content() {
         let (jsb, data) = init();
 
-        // get project
-        let project = data.project;
-        let file = data.file;
-        let path = format!("{}/{}", project, file);
+        // set path
+        let path = format!("{}/{}", data.project, data.file);
 
         // get content
         jsb.get_content(&path).unwrap();
