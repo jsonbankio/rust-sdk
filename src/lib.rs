@@ -2,10 +2,16 @@
 #![allow(unused)]
 
 extern crate reqwest;
+extern crate serde;
+extern crate serde_json;
 
-use reqwest::Error;
+use reqwest::blocking::get;
+use serde::de::DeserializeOwned;
+use serde::Deserialize;
+use serde_json::Value;
 use std::any::Any;
 use std::collections::HashMap;
+use std::error::Error;
 use std::path::Path;
 
 pub const DEFAULT_HOST: &str = "https://api.jsonbank.io";
@@ -39,6 +45,16 @@ pub struct JsonBank {
     pub config: Config,
     // Config
     pub endpoints: Endpoints, // Endpoints
+}
+
+// DocumentMeta struct - Document meta
+#[derive(Debug)]
+pub struct DocumentMeta {
+    pub id: String,
+    pub project: String,
+    pub path: String,
+    pub updated_at: String,
+    pub created_at: String,
 }
 
 // Implementing JsonBank
@@ -94,36 +110,61 @@ impl JsonBank {
 
     // Send request
     // This function sends the http request using reqwest
-    pub fn send_get_request(&self, url: String) -> Result<(), Error> {
+    pub fn send_get_request(&self, url: String) -> Result<HashMap<String, Value>, Box<dyn Error>> {
         // build request
         let client = reqwest::blocking::Client::new();
         let res = client.get(url).send()?;
 
-        // print response
-        println!("Response: {}", res.text()?);
+        // Check if the response is successful
+        if res.status().is_success() {
+            let response_text = res.text()?;
 
-        // return Ok
-        Ok(())
+            // Deserialize the JSON response into a HashMap
+            let json: HashMap<String, Value> = serde_json::from_str(&response_text)?;
+
+            Ok(json)
+        } else {
+            Err("GET request failed with non-successful status code".into())
+        }
+    }
+
+    // GetDocumentMeta - get public content meta from jsonbank
+    pub fn get_document_meta(&self, id_or_path: &str) -> Result<DocumentMeta, Box<dyn Error>> {
+        let path = self.public_url(vec!["meta/f", id_or_path]);
+
+        // send request
+        let res = self.send_get_request(path)?;
+
+        // convert to DocumentMeta
+        let meta = DocumentMeta {
+            id: res["id"].as_str().unwrap().to_string(),
+            project: res["project"].as_str().unwrap().to_string(),
+            path: res["path"].as_str().unwrap().to_string(),
+            updated_at: res["updatedAt"].as_str().unwrap().to_string(),
+            created_at: res["createdAt"].as_str().unwrap().to_string(),
+        };
+
+        Ok(meta)
     }
 
     // GetContent - get public content from jsonbank
-    pub fn get_content(&self, id_or_path: &str) -> Result<(), Error> {
+    pub fn get_content(&self, id_or_path: &str) -> Result<HashMap<String, Value>, Box<dyn Error>> {
         let path = self.public_url(vec!["f", id_or_path]);
 
-        // send request
-        self.send_get_request(path)?;
-
-        // return Ok
-        Ok(())
+        // send request and return response
+        self.send_get_request(path)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Debug)]
     struct Data {
         pub project: &'static str,
         pub file: &'static str,
+        pub id: Option<String>,
     }
 
     fn init() -> (JsonBank, Data) {
@@ -131,10 +172,20 @@ mod tests {
         // set host to dev server
         jsb.set_host("http://localhost:2223");
 
-        let data = Data {
+        let mut data = Data {
             project: "jsonbank/sdk-test",
             file: "index.json",
+            id: None,
         };
+
+        // get metadata for test file
+        let path = format!("{}/{}", data.project, data.file);
+        let meta = jsb.get_document_meta(&path).unwrap();
+
+        // update id
+        data.id = Some(meta.id);
+
+        println!("meta: {:?}", data);
 
         (jsb, data)
     }
@@ -144,9 +195,9 @@ mod tests {
         let (jsb, data) = init();
 
         // set path
-        let path = format!("{}/{}", data.project, data.file);
+        // let path = format!("{}/{}", data.project, data.file);
 
         // get content
-        jsb.get_content(&path).unwrap();
+        // jsb.get_content(&path).unwrap();
     }
 }
