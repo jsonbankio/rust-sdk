@@ -151,16 +151,9 @@ impl JsonBank {
         format!("{}/{}", self.endpoints.public, paths.join("/"))
     }
 
-    // Set host - Sets host
-    pub fn set_host(&mut self, host: &str) {
-        self.config.host = host.to_string();
-        // update endpoints
-        self.endpoints = Self::make_endpoints(&self.config.host);
-    }
-
-    // Send request
+    // send_get_request - Sends get request
     // This function sends the http request using reqwest
-    pub fn send_get_request(&self, url: String) -> Result<HashMap<String, Value>, JsbError> {
+    fn send_get_request(&self, url: String) -> Result<HashMap<String, Value>, JsbError> {
         // build request
         let client = reqwest::blocking::Client::new();
         // let res = client.get(&url).send()?;
@@ -200,21 +193,16 @@ impl JsonBank {
         }
     }
 
-    // GetDocumentMeta - get public content meta from jsonbank
+    // set_host - Sets host
+    pub fn set_host(&mut self, host: &str) {
+        self.config.host = host.to_string();
+        // update endpoints
+        self.endpoints = Self::make_endpoints(&self.config.host);
+    }
+
+    // get_document_meta - get public content meta from jsonbank
     pub fn get_document_meta(&self, id_or_path: &str) -> Result<DocumentMeta, JsbError> {
         let path = self.public_url(vec!["meta/f", id_or_path]);
-
-        // // send request
-        // let res = self.send_get_request(path)?;
-
-        // // convert to DocumentMeta
-        // let meta = DocumentMeta {
-        //     id: res["id"].as_str().unwrap().to_string(),
-        //     project: res["project"].as_str().unwrap().to_string(),
-        //     path: res["path"].as_str().unwrap().to_string(),
-        //     updated_at: res["updatedAt"].as_str().unwrap().to_string(),
-        //     created_at: res["createdAt"].as_str().unwrap().to_string(),
-        // };
 
         // use match to handle error
         match self.send_get_request(path) {
@@ -234,13 +222,15 @@ impl JsonBank {
         }
     }
 
-    // GetContent - get public content from jsonbank
+    // get_content - get public content from jsonbank
     pub fn get_content(&self, id_or_path: &str) -> Result<HashMap<String, Value>, JsbError> {
         let path = self.public_url(vec!["f", id_or_path]);
 
         // send request and return response
         self.send_get_request(path)
     }
+
+    // get_github_content - get content from github
 }
 
 #[cfg(test)]
@@ -256,11 +246,13 @@ mod tests {
         pub path: String,
     }
 
+    // user_path - returns path for user
     fn user_path(path: String) -> String {
         format!("{}/{}", JSONBANK, path)
     }
 
 
+    // init - initialize test
     fn init() -> (JsonBank, TestData) {
         let mut jsb = JsonBank::new_without_config();
         // set host to dev server
