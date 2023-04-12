@@ -1,0 +1,15 @@
+{
+  "name": "jsonbank",
+  "version": "0.0.1",
+  "description": "Jsonbank rust SDK. This package.json file is only sugar access to clickable script commands",
+  "main": "src/lib.rs",
+  "repository": "https://github.com/jsonbankio/rust-sdk",
+  "author": "trapcodeio <trapcode.io@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "build": "cargo build",
+    "test": "cargo test",
+    "doc": "cargo doc"
+  }
+}
