@@ -3,8 +3,10 @@
 
 extern crate reqwest;
 
-use std::collections::HashMap;
 use reqwest::Error;
+use std::any::Any;
+use std::collections::HashMap;
+use std::path::Path;
 
 pub const DEFAULT_HOST: &str = "https://api.jsonbank.io";
 
@@ -66,9 +68,6 @@ impl JsonBank {
         JsonBank { config, endpoints }
     }
 
-
-
-
     // New using default config - Returns JsonBank struct
     pub fn new_without_config() -> Self {
         Self::new(InitConfig {
@@ -76,7 +75,15 @@ impl JsonBank {
             keys: None,
         })
     }
+}
 
+// Instance Implementation
+impl JsonBank {
+    // Format public url
+    fn public_url(&self, paths: Vec<&str>) -> String {
+        // add paths to public endpoint
+        format!("{}/{}", self.endpoints.public, paths.join("/"))
+    }
 
     // Set host - Sets host
     pub fn set_host(&mut self, host: &str) {
@@ -87,10 +94,10 @@ impl JsonBank {
 
     // Send request
     // This function sends the http request using reqwest
-    pub fn send_request(&self) -> Result<(), Error> {
+    pub fn send_get_request(&self, url: String) -> Result<(), Error> {
         // build request
         let client = reqwest::blocking::Client::new();
-        let res = client.get(&self.endpoints.public).send()?;
+        let res = client.get(url).send()?;
 
         // print response
         println!("Response: {}", res.text()?);
@@ -98,20 +105,55 @@ impl JsonBank {
         // return Ok
         Ok(())
     }
+
+    // GetContent - get public content from jsonbank
+    pub fn get_content(&self, id_or_path: &str) -> Result<(), Error> {
+        let path = self.public_url(vec!["f", id_or_path]);
+
+        // send request
+        self.send_get_request(path)?;
+
+        // return Ok
+        Ok(())
+    }
 }
-
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    struct Data {
+        pub project: &'static str,
+        pub file: &'static str,
+    }
 
-    #[test]
-     fn can_send_request() {
+    fn init() -> (JsonBank, Data) {
         let mut jsb = JsonBank::new_without_config();
         // set host to dev server
         jsb.set_host("http://localhost:2223");
 
-        jsb.send_request();
+        // let mut data = HashMap::new();
+
+        // data.insert("project", "jsonbank/sdk-test");
+        // data.insert("file", "index.json");
+
+        let data = Data {
+            project: "jsonbank/sdk-test",
+            file: "index.json",
+        };
+
+        (jsb, data)
+    }
+
+    #[test]
+    fn get_content() {
+        let (jsb, data) = init();
+
+        // get project
+        let project = data.project;
+        let file = data.file;
+        let path = format!("{}/{}", project, file);
+
+        // get content
+        jsb.get_content(&path).unwrap();
     }
 }
