@@ -47,7 +47,10 @@ pub struct Endpoints {
 pub struct JsonBank {
     pub config: Config,
     // Config
-    pub endpoints: Endpoints, // Endpoints
+    pub endpoints: Endpoints,
+    // Endpoints
+    // memory cache
+    authenticated_data: Option<AuthenticatedData>,
 }
 
 // JsbError struct - Error struct
@@ -120,6 +123,35 @@ pub struct DocumentMeta {
     pub path: String,
     pub updated_at: String,
     pub created_at: String,
+}
+
+// AuthenticatedKey struct - Authenticated key
+#[derive(Debug)]
+pub struct AuthenticatedKey {
+    pub title: String,
+    pub projects: Vec<String>,
+}
+
+// AuthenticatedData struct - Authenticated data
+#[derive(Debug)]
+pub struct AuthenticatedData {
+    pub authenticated: bool,
+    pub username: String,
+    pub api_key: AuthenticatedKey,
+}
+
+// impl clone for authenticated data
+impl Clone for AuthenticatedData {
+    fn clone(&self) -> Self {
+        AuthenticatedData {
+            authenticated: self.authenticated,
+            username: self.username.to_string(),
+            api_key: AuthenticatedKey {
+                title: self.api_key.title.to_string(),
+                projects: self.api_key.projects.clone(),
+            },
+        }
+    }
 }
 
 fn hash_map_to_document_meta(map: &HashMap<String, Value>) -> DocumentMeta {
@@ -196,7 +228,7 @@ impl JsonBank {
         let endpoints = Self::make_endpoints(&host);
 
         // return JsonBank struct
-        JsonBank { config, endpoints }
+        JsonBank { config, endpoints, authenticated_data: None }
     }
 
     // New using default config - Returns JsonBank struct
@@ -224,7 +256,7 @@ impl JsonBank {
 
     // send_get_request - Sends get request
     // This function sends the http request using reqwest
-    fn send_get_request<T: DeserializeOwned>(&self, url: String, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
+    fn send_request<T: DeserializeOwned>(&self, method: &str, url: String, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
         // build request
         let client = reqwest::blocking::Client::new();
         // add json header
@@ -303,14 +335,19 @@ impl JsonBank {
         }
     }
 
-    // public_get_request - Sends get request to public endpoint
-    fn public_get_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
-        self.send_get_request(self.public_url(url), false, false)
+    // public_request - Sends get request to public endpoint
+    fn public_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
+        self.send_request("GET", self.public_url(url), false, false)
     }
 
-    // auth_get_request - Sends get request to auth required endpoints using public key
-    fn auth_get_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
-        self.send_get_request(self.v1_url(url), true, false)
+    // read_request - Sends get request to auth required endpoints using public key
+    fn read_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
+        self.send_request("GET", self.v1_url(url), true, false)
+    }
+
+    // read_post_request - Sends post request to auth required endpoints using public key
+    fn read_post_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
+        self.send_request("POST", self.v1_url(url), true, false)
     }
 
     // set_host - Sets host
@@ -322,7 +359,7 @@ impl JsonBank {
 
     // get_document_meta - get public content meta from jsonbank
     pub fn get_document_meta(&self, id_or_path: &str) -> Result<DocumentMeta, JsbError> {
-        match self.public_get_request::<HashMap<String, Value>>(vec!["meta/f", id_or_path]) {
+        match self.public_request::<HashMap<String, Value>>(vec!["meta/f", id_or_path]) {
             Ok(res) => {
                 // convert to DocumentMeta
                 Ok(hash_map_to_document_meta(&res))
@@ -333,21 +370,44 @@ impl JsonBank {
 
     // get_content - get public content from jsonbank
     pub fn get_content<T: DeserializeOwned>(&self, id_or_path: &str) -> Result<T, JsbError> {
-        self.public_get_request::<T>(vec!["f", id_or_path])
+        self.public_request::<T>(vec!["f", id_or_path])
     }
 
     // get_github_content - get content from github
     pub fn get_github_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
-        self.public_get_request(vec!["gh", path])
+        self.public_request(vec!["gh", path])
     }
 }
 
 
 // Auth Implementation
 impl JsonBank {
+    // authenicate - Authenticate user
+    pub fn authenticate(&mut self) -> Result<AuthenticatedData, JsbError> {
+        match self.read_post_request::<HashMap<String, Value>>(vec!["authenticate"]) {
+            Ok(res) => {
+                // convert to AuthenticatedData
+                let mut data = AuthenticatedData {
+                    authenticated: res["authenticated"].as_bool().unwrap(),
+                    username: res["username"].as_str().unwrap().to_string(),
+                    api_key: AuthenticatedKey {
+                        title: res["apiKey"]["title"].as_str().unwrap().to_string(),
+                        projects: res["apiKey"]["projects"].as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect(),
+                    },
+                };
+
+                // set authenicated_data
+                self.authenticated_data = Some(data.clone());
+
+                Ok(data)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
     // get_own_document_meta - get own content meta from jsonbank
     pub fn get_own_document_meta(&self, path: &str) -> Result<DocumentMeta, JsbError> {
-        match self.auth_get_request::<HashMap<String, Value>>(vec!["meta/file", path]) {
+        match self.read_request::<HashMap<String, Value>>(vec!["meta/file", path]) {
             Ok(res) => {
                 // convert to DocumentMeta
                 Ok(hash_map_to_document_meta(&res))
@@ -359,97 +419,6 @@ impl JsonBank {
 
     // get_own_content - get own content from jsonbank
     pub fn get_own_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
-        self.auth_get_request(vec!["file", path])
+        self.read_request(vec!["file", path])
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//
-//     #[derive(Debug)]
-//     struct TestData {
-//         pub project: &'static str,
-//         pub file: &'static str,
-//         pub id: Option<String>,
-//         pub path: String,
-//     }
-//
-//     // user_path - returns path for user
-//     fn user_path(path: String) -> String {
-//         format!("{}/{}", JSONBANK, path)
-//     }
-//
-//
-//     // init - initialize test
-//     fn init() -> (JsonBank, TestData) {
-//         let mut jsb = JsonBank::new_without_config();
-//         // set host to dev server
-//         jsb.set_host("http://localhost:2223");
-//
-//         let mut data = TestData {
-//             project: "jsonbank/sdk-test",
-//             file: "index.json",
-//             id: None,
-//             path: "".to_string(),
-//         };
-//
-//         // set path
-//         data.path = format!("{}/{}", data.project, data.file);
-//
-//         // get metadata for test file
-//         let path = format!("{}/{}", data.project, data.file);
-//         let meta = jsb.get_document_meta(&path).unwrap();
-//
-//         // update id
-//         data.id = Some(meta.id);
-//
-//         (jsb, data)
-//     }
-//
-//     #[test]
-//     fn get_content() {
-//         let (jsb, mut data) = init();
-//
-//         // get content by id
-//         let content = match jsb.get_content(&data.id.unwrap()) {
-//             Ok(content) => content,
-//             Err(err) => panic!("{:?}", err),
-//         };
-//
-//         assert_eq!(content["author"], JSONBANK);
-//
-//         // get content by path
-//         let content = match jsb.get_content(&data.path) {
-//             Ok(content) => content,
-//             Err(err) => panic!("{:?}", err),
-//         };
-//
-//         assert_eq!(content["author"], JSONBANK);
-//     }
-//
-//
-//     #[test]
-//     fn get_document_meta() {
-//         let (jsb, data) = init();
-//
-//         // get metadata by id
-//         let meta = match jsb.get_document_meta(&data.id.unwrap()) {
-//             Ok(meta) => meta,
-//             Err(err) => panic!("{:?}", err),
-//         };
-//
-//         assert_eq!(user_path(meta.project), data.project);
-//         assert_eq!(meta.path, data.file);
-//
-//         // get metadata by path
-//         let meta = match jsb.get_document_meta(&data.path) {
-//             Ok(meta) => meta,
-//             Err(err) => panic!("{:?}", err),
-//         };
-//
-//         assert_eq!(user_path(meta.project), data.project);
-//         assert_eq!(meta.path, data.file);
-//     }
-// }

@@ -90,3 +90,15 @@ fn get_own_document_meta() {
     assert_eq!(meta.project, data.project);
     assert_eq!(meta.path, data.file);
 }
+
+#[test]
+fn authenticate(){
+    let (mut jsb, _data) = init();
+
+    let auth = match jsb.authenticate() {
+        Ok(auth) => auth,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(auth.authenticated, true);
+}
