@@ -19,7 +19,6 @@ pub const JSONBANKIO: &str = "jsonbankio";
 pub const DEFAULT_HOST: &str = "https://api.jsonbank.io";
 
 // Keys struct - Public and private keys
-// TODO: remove debug
 pub struct Keys {
     pub public: Option<String>,
     pub private: Option<String>,
