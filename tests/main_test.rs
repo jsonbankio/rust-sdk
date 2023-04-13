@@ -9,7 +9,7 @@ use functions::*;
 // init - initializes test
 fn init() -> (JsonBank, TestData) {
     let jsb = JsonBank::new_without_config();
-    prepare_instance(jsb)
+    prepare_instance(jsb, false)
 }
 
 

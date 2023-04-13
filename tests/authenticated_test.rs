@@ -8,6 +8,7 @@ use jsonbank::*;
 use functions::*;
 
 
+#[derive(Debug)]
 struct Env {
     host: String,
     public_key: String,
@@ -31,16 +32,17 @@ fn load_env() -> Env {
 // init - initializes test
 fn init() -> (JsonBank, TestData) {
     let env = load_env();
-
-    let jsb = JsonBank::new(InitConfig {
+    let config = InitConfig {
         host: Some(env.host),
         keys: Some(Keys {
             public: Some(env.public_key),
             private: Some(env.private_key),
         }),
-    });
+    };
 
-    prepare_instance(jsb, "sdk-test".to_string())
+    let jsb = JsonBank::new(config);
+
+    prepare_instance(jsb, true)
 }
 
 
@@ -49,7 +51,7 @@ fn get_own_content() {
     let (jsb, data) = init();
 
     // get content by id
-    let content: HashMap<String, Value> = match jsb.get_content(&data.id.unwrap()) {
+    let content: HashMap<String, Value> = match jsb.get_own_content(&data.id.unwrap()) {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };
@@ -57,7 +59,7 @@ fn get_own_content() {
     assert_eq!(content["author"], JSONBANK);
 
     // get content by path
-    let content: HashMap<String, Value> = match jsb.get_content(&data.path) {
+    let content: HashMap<String, Value> = match jsb.get_own_content(&data.path) {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };
@@ -67,24 +69,24 @@ fn get_own_content() {
 
 
 #[test]
-fn get_document_meta() {
+fn get_own_document_meta() {
     let (jsb, data) = init();
 
     // get metadata by id
-    let meta = match jsb.get_document_meta(&data.id.unwrap()) {
+    let meta = match jsb.get_own_document_meta(&data.id.unwrap()) {
         Ok(meta) => meta,
         Err(err) => panic!("{:?}", err),
     };
 
-    assert_eq!(user_path(meta.project), data.project);
+    assert_eq!(meta.project, data.project);
     assert_eq!(meta.path, data.file);
 
     // get metadata by path
-    let meta = match jsb.get_document_meta(&data.path) {
+    let meta = match jsb.get_own_document_meta(&data.path) {
         Ok(meta) => meta,
         Err(err) => panic!("{:?}", err),
     };
 
-    assert_eq!(user_path(meta.project), data.project);
+    assert_eq!(meta.project, data.project);
     assert_eq!(meta.path, data.file);
 }

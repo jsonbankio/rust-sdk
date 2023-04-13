@@ -1,4 +1,4 @@
-use jsonbank::{JSONBANK, JsonBank};
+use jsonbank::{JsonBank};
 
 #[derive(Debug)]
 pub struct TestData {
@@ -8,17 +8,18 @@ pub struct TestData {
     pub path: String,
 }
 
-// user_path - returns path for user
-pub fn user_path(path: String) -> String {
-    format!("{}/{}", JSONBANK, path)
-}
-
-
 // prepare_instance - prepares instance for testing
-pub fn prepare_instance(mut jsb: JsonBank, project: String) -> (JsonBank, TestData) {
+pub fn prepare_instance(mut jsb: JsonBank, authenticated: bool) -> (JsonBank, TestData) {
     // set host to dev server
     jsb.set_host("http://localhost:2223");
 
+    let project =  if authenticated {
+        // no username required for authenticated user
+        "sdk-test".to_string()
+    } else {
+        // username is required for public access
+        "jsonbank/sdk-test".to_string()
+    };
 
 
     let mut data = TestData {
@@ -32,8 +33,13 @@ pub fn prepare_instance(mut jsb: JsonBank, project: String) -> (JsonBank, TestDa
     data.path = format!("{}/{}", data.project, data.file);
 
     // get metadata for test file
-    let path = format!("{}/{}", data.project, data.file);
-    let meta = jsb.get_document_meta(&path).unwrap();
+    // let path = format!("{}/{}", data.project, data.file);
+
+    let meta = if authenticated {
+        jsb.get_own_document_meta(&data.path).unwrap()
+    } else {
+        jsb.get_document_meta(&data.path).unwrap()
+    };
 
     // update id
     data.id = Some(meta.id);

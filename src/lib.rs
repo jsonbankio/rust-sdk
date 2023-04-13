@@ -19,6 +19,7 @@ pub const JSONBANKIO: &str = "jsonbankio";
 pub const DEFAULT_HOST: &str = "https://api.jsonbank.io";
 
 // Keys struct - Public and private keys
+// TODO: remove debug
 pub struct Keys {
     pub public: Option<String>,
     pub private: Option<String>,
@@ -98,6 +99,19 @@ impl JsbError {
     }
 }
 
+// API Error struct
+#[derive(Debug)]
+pub struct ApiError {
+    pub code: String,
+    pub message: String,
+}
+
+// Api Error Response struct
+#[derive(Debug)]
+pub struct ApiErrorResponse {
+    pub error: ApiError,
+}
+
 // DocumentMeta struct - Document meta
 #[derive(Debug)]
 pub struct DocumentMeta {
@@ -120,6 +134,46 @@ fn hash_map_to_document_meta(map: &HashMap<String, Value>) -> DocumentMeta {
 
 // Implementing JsonBank
 impl JsonBank {
+    // has_key - Checks if a key is provided either public or private
+    fn has_key(&self, key: &str) -> bool {
+        // check if keys are provided
+        if self.config.keys.is_none() {
+            return false;
+        }
+
+        // get keys
+        let keys = self.config.keys.as_ref().unwrap();
+
+        // check if key is provided
+        if key == "public" {
+            return keys.public.is_some();
+        } else if key == "private" {
+            return keys.private.is_some();
+        }
+
+        false
+    }
+
+    // get_key - Returns the key
+    fn get_key(&self, key: &str) -> String {
+        // check if keys are provided
+        if self.config.keys.is_none() {
+            return "".to_string();
+        }
+
+        // get keys
+        let keys = self.config.keys.as_ref().unwrap();
+
+        // check if key is provided
+        if key == "public" {
+            return keys.public.as_ref().unwrap().to_string();
+        } else if key == "private" {
+            return keys.private.as_ref().unwrap().to_string();
+        }
+
+        "".to_string()
+    }
+
     // Make Endpoints
     fn make_endpoints(host: &String) -> Endpoints {
         Endpoints {
@@ -170,12 +224,41 @@ impl JsonBank {
 
     // send_get_request - Sends get request
     // This function sends the http request using reqwest
-    fn send_get_request<T: DeserializeOwned>(&self, url: String) -> Result<T, JsbError> {
+    fn send_get_request<T: DeserializeOwned>(&self, url: String, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
         // build request
         let client = reqwest::blocking::Client::new();
-        // let res = client.get(&url).send()?;
-        // use let res = match to handle error
-        let res = match client.get(&url).send() {
+        // add json header
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert("Content-Type", "application/json".parse().unwrap());
+
+        // check if public key is required and not provided
+        if require_pub_key {
+            if self.has_key("public") {
+                // add public key to headers as `jsb-pub-key`
+                headers.insert("jsb-pub-key", self.get_key("public").parse().unwrap());
+            } else {
+                return Err(JsbError {
+                    code: "bad_request".to_string(),
+                    message: "Public key is not set".to_string(),
+                });
+            }
+        }
+
+        // check if private key is required and not provided
+        if require_prv_key {
+            if self.has_key("private") {
+                // add private key to headers as `jsb-private-key`
+                headers.insert("jsb-prv-key", self.get_key("private").parse().unwrap());
+            } else {
+                return Err(JsbError {
+                    code: "bad_request".to_string(),
+                    message: "Private key is not set".to_string(),
+                });
+            }
+        }
+
+
+        let res = match client.get(&url).headers(headers).send() {
             Ok(res) => res,
             Err(err) => {
                 return Err(JsbError::from_any(&err, None));
@@ -193,11 +276,41 @@ impl JsonBank {
 
             Ok(response_text)
         } else {
+            let code = res.status().to_string();
+            let data: HashMap<String, Value> = match res.json() {
+                Ok(text) => text,
+                Err(err) => {
+                    return Err(JsbError::from_any(&err, None));
+                }
+            };
+
+            // get error object from data
+            let error = match data["error"].as_object() {
+                Some(err) => err,
+                None => {
+                    return Err(JsbError {
+                        code,
+                        message: "Unknown error".to_string(),
+                    });
+                }
+            };
+
+
             Err(JsbError {
-                code: res.status().to_string(),
-                message: "Request failed".to_string(),
+                code: error["code"].as_str().unwrap().to_string(),
+                message: error["message"].as_str().unwrap().to_string(),
             })
         }
+    }
+
+    // public_get_request - Sends get request to public endpoint
+    fn public_get_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
+        self.send_get_request(self.public_url(url), false, false)
+    }
+
+    // auth_get_request - Sends get request to auth required endpoints using public key
+    fn auth_get_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
+        self.send_get_request(self.v1_url(url), true, false)
     }
 
     // set_host - Sets host
@@ -209,10 +322,7 @@ impl JsonBank {
 
     // get_document_meta - get public content meta from jsonbank
     pub fn get_document_meta(&self, id_or_path: &str) -> Result<DocumentMeta, JsbError> {
-        let path = self.public_url(vec!["meta/f", id_or_path]);
-
-        // use match to handle error
-        match self.send_get_request::<HashMap<String, Value>>(path) {
+        match self.public_get_request::<HashMap<String, Value>>(vec!["meta/f", id_or_path]) {
             Ok(res) => {
                 // convert to DocumentMeta
                 Ok(hash_map_to_document_meta(&res))
@@ -223,12 +333,12 @@ impl JsonBank {
 
     // get_content - get public content from jsonbank
     pub fn get_content<T: DeserializeOwned>(&self, id_or_path: &str) -> Result<T, JsbError> {
-        self.send_get_request::<T>(self.public_url(vec!["f", id_or_path]))
+        self.public_get_request::<T>(vec!["f", id_or_path])
     }
 
     // get_github_content - get content from github
     pub fn get_github_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
-        self.send_get_request(self.public_url(vec!["gh", path]))
+        self.public_get_request(vec!["gh", path])
     }
 }
 
@@ -237,10 +347,7 @@ impl JsonBank {
 impl JsonBank {
     // get_own_document_meta - get own content meta from jsonbank
     pub fn get_own_document_meta(&self, path: &str) -> Result<DocumentMeta, JsbError> {
-        let path = self.v1_url(vec!["meta/file", path]);
-
-        // use match to handle error
-        match self.send_get_request::<HashMap<String, Value>>(path) {
+        match self.auth_get_request::<HashMap<String, Value>>(vec!["meta/file", path]) {
             Ok(res) => {
                 // convert to DocumentMeta
                 Ok(hash_map_to_document_meta(&res))
@@ -252,7 +359,7 @@ impl JsonBank {
 
     // get_own_content - get own content from jsonbank
     pub fn get_own_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
-        self.send_get_request(self.v1_url(vec!["file", path]))
+        self.auth_get_request(vec!["file", path])
     }
 }
 
