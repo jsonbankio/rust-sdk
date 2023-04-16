@@ -92,7 +92,7 @@ fn get_own_document_meta() {
 }
 
 #[test]
-fn authenticate(){
+fn authenticate() {
     let (mut jsb, _data) = init();
 
     let auth = match jsb.authenticate() {
