@@ -101,4 +101,13 @@ fn authenticate(){
     };
 
     assert_eq!(auth.authenticated, true);
+
+
+    // test get_username since we are authenticated
+    let username = match jsb.get_username() {
+        Ok(username) => username,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(username, JSONBANK);
 }

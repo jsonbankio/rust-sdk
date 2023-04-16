@@ -404,6 +404,17 @@ impl JsonBank {
         }
     }
 
+    // get_authenticated_data - Get authenticated data
+    pub fn get_username(&self) -> Result<String, JsbError> {
+        match &self.authenticated_data {
+            Some(data) => Ok(data.username.clone()),
+            None => Err(JsbError {
+                code: "not_authenticated".to_string(),
+                message: "User is not authenticated".to_string(),
+            }),
+        }
+    }
+
     // get_own_document_meta - get own content meta from jsonbank
     pub fn get_own_document_meta(&self, path: &str) -> Result<DocumentMeta, JsbError> {
         match self.read_request::<HashMap<String, Value>>(vec!["meta/file", path]) {
