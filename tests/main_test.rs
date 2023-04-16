@@ -12,6 +12,11 @@ fn init() -> (JsonBank, TestData) {
     prepare_instance(jsb, false)
 }
 
+// user_path - returns path for user
+fn user_path(path: String) -> String {
+    format!("{}/{}", JSONBANK, path)
+}
+
 
 #[test]
 fn get_content() {
