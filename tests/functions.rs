@@ -2,8 +2,8 @@ use jsonbank::{JsonBank};
 
 #[derive(Debug)]
 pub struct TestData {
-    pub project:String,
-    pub file: String,
+    pub project: String,
+    pub name: String,
     pub id: Option<String>,
     pub path: String,
 }
@@ -13,7 +13,7 @@ pub fn prepare_instance(mut jsb: JsonBank, authenticated: bool) -> (JsonBank, Te
     // set host to dev server
     jsb.set_host("http://localhost:2223");
 
-    let project =  if authenticated {
+    let project = if authenticated {
         // no username required for authenticated user
         "sdk-test".to_string()
     } else {
@@ -24,16 +24,13 @@ pub fn prepare_instance(mut jsb: JsonBank, authenticated: bool) -> (JsonBank, Te
 
     let mut data = TestData {
         project,
-        file: "index.json".to_string(),
+        name: "index.json".to_string(),
         id: None,
         path: "".to_string(),
     };
 
     // set path
-    data.path = format!("{}/{}", data.project, data.file);
-
-    // get metadata for test file
-    // let path = format!("{}/{}", data.project, data.file);
+    data.path = format!("{}/{}", data.project, data.name);
 
     let meta = if authenticated {
         jsb.get_own_document_meta(&data.path).unwrap()

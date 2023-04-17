@@ -33,7 +33,7 @@ impl Clone for AuthenticatedData {
 pub struct CreateDocumentBody {
     pub name: String,
     pub project: String,
-    pub format: String,
+    pub folder: Option<String>,
     pub content: String,
 }
 
@@ -45,5 +45,13 @@ pub struct NewDocument {
     pub path: String,
     pub project: String,
     pub created_at: String,
-    pub exits: bool,
+    // this field is not returned by the api
+    // it is populated by the `create_document_if_not_exists` function
+    pub exists: bool,
+}
+
+// DeletedDocument struct - Deleted document
+#[derive(Debug)]
+pub struct DeletedDocument {
+    pub deleted: bool,
 }

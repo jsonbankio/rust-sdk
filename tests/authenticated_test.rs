@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use serde_json::{Value};
 use jsonbank::*;
 use functions::*;
+use jsonbank::structs::CreateDocumentBody;
 
 
 #[derive(Debug)]
@@ -15,6 +16,13 @@ struct Env {
     private_key: String,
 }
 
+// test_file_content - returns test file content
+fn test_file_content() -> String {
+    r#"{
+        "name": "JsonBank SDK Test File",
+        "author": "jsonbank"
+    }"#.to_string()
+}
 
 // load env
 // this function loads the public and private keys from the environment file
@@ -79,7 +87,7 @@ fn get_own_document_meta() {
     };
 
     assert_eq!(meta.project, data.project);
-    assert_eq!(meta.path, data.file);
+    assert_eq!(meta.path, data.name);
 
     // get metadata by path
     let meta = match jsb.get_own_document_meta(&data.path) {
@@ -88,7 +96,7 @@ fn get_own_document_meta() {
     };
 
     assert_eq!(meta.project, data.project);
-    assert_eq!(meta.path, data.file);
+    assert_eq!(meta.path, data.name);
 }
 
 #[test]
@@ -113,4 +121,31 @@ fn authenticate() {
     };
 
     assert_eq!(username, JSONBANK);
+}
+
+#[test]
+fn create_document() {
+    let (jsb, data) = init();
+
+    // delete test file if it exists
+    let res = match jsb.delete_document(&data.path) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(res.deleted, true);
+
+    let content = CreateDocumentBody {
+        name: data.name,
+        project: data.project.clone(),
+        folder: None,
+        content: test_file_content(),
+    };
+
+    let new_doc = match jsb.create_document(content) {
+        Ok(meta) => meta,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(new_doc.project, data.project);
 }

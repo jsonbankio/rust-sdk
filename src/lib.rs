@@ -8,11 +8,11 @@ extern crate serde_json;
 
 mod jsb_error;
 mod functions;
-mod structs;
+pub mod structs;
 
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
@@ -70,8 +70,6 @@ pub struct DocumentMeta {
     pub updated_at: String,
     pub created_at: String,
 }
-
-
 
 
 // Implementing JsonBank
@@ -166,7 +164,7 @@ impl JsonBank {
 
     // send_get_request - Sends get request
     // This function sends the http request using reqwest
-    fn send_request<T: DeserializeOwned>(&self, method: &str, url: String, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
+    fn send_request<T: DeserializeOwned>(&self, method: &str, url: String, body: Option<HashMap<String, Value>>, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
         // build request
         let client = reqwest::blocking::Client::new();
         // add json header
@@ -199,8 +197,14 @@ impl JsonBank {
             }
         }
 
-
-        let res = match client.get(&url).headers(headers).send() {
+        // send request
+        let res = match {
+            match method {
+                "POST" => client.post(&url).json(&body.unwrap_or(HashMap::new())),
+                "DELETE" => client.delete(&url),
+                _ => client.get(&url)
+            }.headers(headers).send()
+        } {
             Ok(res) => res,
             Err(err) => {
                 return Err(JsbError::from_any(&err, None));
@@ -247,17 +251,27 @@ impl JsonBank {
 
     // public_request - Sends get request to public endpoint
     fn public_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
-        self.send_request("GET", self.public_url(url), false, false)
+        self.send_request("GET", self.public_url(url), None, false, false)
     }
 
     // read_request - Sends get request to auth required endpoints using public key
     fn read_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
-        self.send_request("GET", self.v1_url(url), true, false)
+        self.send_request("GET", self.v1_url(url), None, true, false)
     }
 
     // read_post_request - Sends post request to auth required endpoints using public key
-    fn read_post_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
-        self.send_request("POST", self.v1_url(url), true, false)
+    fn read_post_request<T: DeserializeOwned>(&self, url: Vec<&str>, body: Option<HashMap<String, Value>>) -> Result<T, JsbError> {
+        self.send_request("POST", self.v1_url(url), body, true, false)
+    }
+
+    // write_request - Sends post request to auth required endpoints using private key
+    fn write_request<T: DeserializeOwned>(&self, url: Vec<&str>, body: Option<HashMap<String, Value>>) -> Result<T, JsbError> {
+        self.send_request("POST", self.v1_url(url), body, false, true)
+    }
+
+    // delete_request - Sends delete request to auth required endpoints using private key
+    fn delete_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
+        self.send_request("DELETE", self.v1_url(url), None, false, true)
     }
 
     // set_host - Sets host
@@ -292,9 +306,9 @@ impl JsonBank {
 
 // Auth Implementation
 impl JsonBank {
-    // authenicate - Authenticate user
+    // authenticate - Authenticate user
     pub fn authenticate(&mut self) -> Result<AuthenticatedData, JsbError> {
-        match self.read_post_request::<HashMap<String, Value>>(vec!["authenticate"]) {
+        match self.read_post_request::<HashMap<String, Value>>(vec!["authenticate"], None) {
             Ok(res) => {
                 // convert to AuthenticatedData
                 let mut data = AuthenticatedData {
@@ -306,7 +320,7 @@ impl JsonBank {
                     },
                 };
 
-                // set authenicated_data
+                // set authenticated data
                 self.authenticated_data = Some(data.clone());
 
                 Ok(data)
@@ -354,32 +368,85 @@ impl JsonBank {
     // has_own_document - check if user has document
     // This method will try to get document meta and if it fails it will return false
     pub fn has_own_document(&self, path: &str) -> bool {
-        match self.get_own_document_meta(path) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        self.get_own_document_meta(path).is_ok()
     }
 
     // create_document - create a document
-    // pub fn create_document(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
-    //
-    //     // check if content.project is set
-    //     if content.project == "" {
-    //         return Err(JsbError {
-    //             code: "bad_request".to_string(),
-    //             message: "Project required".to_string(),
-    //         });
-    //     }
-    //
-    //     // check if content.name is set
-    //     if content.name == "" {
-    //         return Err(JsbError {
-    //             code: "bad_request".to_string(),
-    //             message: "Name required".to_string(),
-    //         });
-    //     }
-    //
-    //
-    //     let url = vec!["project", &content.project, "document"];
-    // }
+    pub fn create_document(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
+
+        // check if content.project is set
+        if content.project.is_empty() {
+            return Err(JsbError {
+                code: "bad_request".to_string(),
+                message: "Project required".to_string(),
+            });
+        }
+
+        // check if content.name is set
+        if content.name.is_empty() {
+            return Err(JsbError {
+                code: "bad_request".to_string(),
+                message: "Name required".to_string(),
+            });
+        }
+
+        // check if content.content is set
+        if content.content.is_empty() {
+            return Err(JsbError {
+                code: "bad_request".to_string(),
+                message: "Content required".to_string(),
+            });
+        }
+
+        // check if content.content is a valid json
+        if !is_valid_json(&content.content) {
+            return Err(JsbError {
+                code: "bad_request".to_string(),
+                message: "Content is not valid json".to_string(),
+            });
+        }
+
+        // convert content to hashmap
+        let mut body: HashMap<String, Value> = HashMap::from([
+            ("name".to_string(), Value::String(content.name)),
+            ("project".to_string(), Value::String(content.project.clone())),
+            ("content".to_string(), Value::String(content.content)),
+        ]);
+
+        // add folder if set
+        if content.folder.is_some() {
+            body.insert("folder".to_string(), Value::String(content.folder.unwrap()));
+        }
+
+
+        // send request
+        let url = vec!["project", &content.project, "document"];
+        match self.write_request::<HashMap<String, Value>>(url, Some(body)) {
+            Ok(res) => {
+                // convert to NewDocument
+                Ok(NewDocument {
+                    id: res["id"].as_str().unwrap().to_string(),
+                    name: res["name"].as_str().unwrap().to_string(),
+                    path: res["path"].as_str().unwrap().to_string(),
+                    project: res["project"].as_str().unwrap().to_string(),
+                    created_at: res["createdAt"].as_str().unwrap().to_string(),
+                    exists: false,
+                })
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    // delete_document - delete a document
+    pub fn delete_document(&self, path: &str) -> Result<DeletedDocument, JsbError> {
+        match self.delete_request::<HashMap<String, Value>>(vec!["file", path]) {
+            Ok(res) => {
+                // convert to DeletedDocument
+                Ok(DeletedDocument {
+                    deleted: res["deleted"].as_bool().unwrap_or(false),
+                })
+            }
+            Err(err) => Err(err),
+        }
+    }
 }
