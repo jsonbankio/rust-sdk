@@ -37,6 +37,27 @@ pub struct CreateDocumentBody {
     pub content: String,
 }
 
+// UploadDocumentBody struct - Upload document body
+#[derive(Debug)]
+pub struct UploadDocumentBody {
+    pub file_path: String,
+    pub project: String,
+    pub name: Option<String>,
+    pub folder: Option<String>,
+}
+
+// impl clone for create document body
+impl Clone for CreateDocumentBody {
+    fn clone(&self) -> Self {
+        CreateDocumentBody {
+            name: self.name.to_string(),
+            project: self.project.to_string(),
+            folder: self.folder.clone(),
+            content: self.content.to_string(),
+        }
+    }
+}
+
 // NewDocument struct - New document
 #[derive(Debug)]
 pub struct NewDocument {

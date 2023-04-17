@@ -17,6 +17,8 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::fs;
+use std::path::{Path, PathBuf};
 use jsb_error::*;
 use functions::*;
 use structs::*;
@@ -437,6 +439,96 @@ impl JsonBank {
         }
     }
 
+    // create_document_if_not_exists - create a document if it does not exist
+    // First, it will try to create the document, if it fails and document error code is "name.exists" it will try to get the document
+    // and return it
+    pub fn create_document_if_not_exists(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
+        match self.create_document(content.clone()) {
+            Ok(res) => Ok(res),
+            Err(err) => {
+                // check if error code is name.exists
+                if err.code == "name.exists" {
+                    let doc_path = make_document_path(&content);
+                    // get document
+                    match self.get_own_document_meta(doc_path.as_str()) {
+                        Ok(res) => Ok(NewDocument {
+                            id: res.id,
+                            name: content.name,
+                            path: res.path,
+                            project: res.project,
+                            created_at: res.created_at,
+                            exists: true,
+                        }),
+                        Err(err) => Err(err),
+                    }
+                } else {
+                    Err(err)
+                }
+            }
+        }
+    }
+
+
+    // upload document - upload a json document
+    // this method will read the file and upload it to jsonbank
+    pub fn upload_document(&self, doc: UploadDocumentBody) -> Result<NewDocument, JsbError> {
+        // project is required
+        if doc.project.is_empty() {
+            return Err(JsbError {
+                code: "bad_request".to_string(),
+                message: "Project required".to_string(),
+            });
+        }
+
+        // let path = Path::new(&doc.file_path).
+        let file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(doc.file_path);
+        println!("file_path: {:?}", file_path);
+        // check if file exists using os
+        if !file_path.exists() {
+            return Err(JsbError {
+                code: "file_not_found".to_string(),
+                message: "File does not exist".to_string(),
+            });
+        }
+
+        // read file
+        let file_content = match fs::read_to_string(file_path.clone()) {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(JsbError {
+                    code: "invalid_file".to_string(),
+                    message: err.to_string(),
+                });
+            }
+        };
+
+        // check if file is valid json
+        if !is_valid_json(&file_content) {
+            return Err(JsbError {
+                code: "invalid_file".to_string(),
+                message: "File is not valid json".to_string(),
+            });
+        }
+
+        // set name if not set
+        let name = if doc.name.is_none() {
+            file_path.file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+        } else {
+            doc.name.unwrap()
+        };
+
+        self.create_document(CreateDocumentBody {
+            name,
+            project: doc.project,
+            content: file_content,
+            folder: doc.folder,
+        })
+    }
+
     // delete_document - delete a document
     pub fn delete_document(&self, path: &str) -> Result<DeletedDocument, JsbError> {
         match self.delete_request::<HashMap<String, Value>>(vec!["file", path]) {
@@ -446,7 +538,14 @@ impl JsonBank {
                     deleted: res["deleted"].as_bool().unwrap_or(false),
                 })
             }
-            Err(err) => Err(err),
+            Err(err) => {
+                // if error code is `notFound` return DeletedDocument with deleted = false
+                if err.code == "notFound" {
+                    Ok(DeletedDocument { deleted: false })
+                } else {
+                    Err(err)
+                }
+            },
         }
     }
 }

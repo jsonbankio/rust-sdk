@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use serde_json::{Value};
 use jsonbank::*;
 use functions::*;
-use jsonbank::structs::CreateDocumentBody;
+use jsonbank::structs::{CreateDocumentBody, UploadDocumentBody};
 
 
 #[derive(Debug)]
@@ -143,9 +143,81 @@ fn create_document() {
     };
 
     let new_doc = match jsb.create_document(content) {
-        Ok(meta) => meta,
+        Ok(doc) => doc,
         Err(err) => panic!("{:?}", err),
     };
 
     assert_eq!(new_doc.project, data.project);
+}
+
+
+#[test]
+fn create_document_if_not_exists() {
+    let (jsb, data) = init();
+
+    let content = CreateDocumentBody {
+        name: data.name,
+        project: data.project.clone(),
+        folder: None,
+        content: test_file_content(),
+    };
+
+    let new_doc = match jsb.create_document_if_not_exists(content) {
+        Ok(doc) => doc,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    println!("{:?}", new_doc);
+
+    assert_eq!(new_doc.project, data.project);
+}
+
+#[test]
+fn upload_document() {
+    let (jsb, data) = init();
+
+    // delete test file if it exists
+    let _ = match jsb.delete_document(format!("{}/{}", data.project, "upload.json").as_str()) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+
+    let file_path = "tests/upload.json";
+    let new_doc = match jsb.upload_document(UploadDocumentBody{
+        file_path: file_path.to_string(),
+        project: data.project.clone(),
+        name: None,
+        folder: None,
+    }) {
+        Ok(doc) => doc,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(new_doc.project, data.project);
+    // both paths should be the same
+    assert_eq!(new_doc.path, "upload.json");
+}
+
+#[test]
+fn upload_document_to_folder() {
+    let (jsb, data) = init();
+
+    // delete test file if it exists
+    let _ = jsb.delete_document(format!("{}/{}", data.project, "folder/upload.json").as_str());
+
+    let file_path = "tests/upload.json";
+    let new_doc = match jsb.upload_document(UploadDocumentBody{
+        file_path: file_path.to_string(),
+        project: data.project.clone(),
+        name: None,
+        folder: Some("folder".to_string()),
+    }) {
+        Ok(doc) => doc,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(new_doc.project, data.project);
+    // both paths should be the same
+    assert_eq!(new_doc.path, "folder/upload.json");
 }
