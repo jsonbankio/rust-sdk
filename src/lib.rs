@@ -5,6 +5,11 @@ extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
 
+
+mod jsb_error;
+mod functions;
+mod structs;
+
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::Value;
@@ -12,6 +17,9 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use jsb_error::*;
+use functions::*;
+use structs::*;
 
 
 pub const JSONBANK: &str = "jsonbank";
@@ -52,67 +60,6 @@ pub struct JsonBank {
     authenticated_data: Option<AuthenticatedData>,
 }
 
-// JsbError struct - Error struct
-#[derive(Debug)]
-pub struct JsbError {
-    pub code: String,
-    pub message: String,
-}
-
-impl Display for JsbError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl Error for JsbError {}
-
-impl JsbError {
-    // convert any error to jsb error
-    pub fn from_any(err: &dyn Any, _code: Option<&str>) -> JsbError {
-        let mut code = _code.unwrap_or("500");
-
-        if let Some(err) = err.downcast_ref::<JsbError>() {
-            // if _code is not provided, use the code from the error
-            if _code.is_none() {
-                code = &err.code;
-            }
-
-            JsbError {
-                code: code.to_string(),
-                message: err.message.to_string(),
-            }
-        } else if let Some(err) = err.downcast_ref::<reqwest::Error>() {
-            JsbError {
-                code: code.to_string(),
-                message: err.to_string(),
-            }
-        } else if let Some(err) = err.downcast_ref::<serde_json::Error>() {
-            JsbError {
-                code: code.to_string(),
-                message: err.to_string(),
-            }
-        } else {
-            JsbError {
-                code: code.to_string(),
-                message: "Unknown error".to_string(),
-            }
-        }
-    }
-}
-
-// API Error struct
-#[derive(Debug)]
-pub struct ApiError {
-    pub code: String,
-    pub message: String,
-}
-
-// Api Error Response struct
-#[derive(Debug)]
-pub struct ApiErrorResponse {
-    pub error: ApiError,
-}
 
 // DocumentMeta struct - Document meta
 #[derive(Debug)]
@@ -124,44 +71,8 @@ pub struct DocumentMeta {
     pub created_at: String,
 }
 
-// AuthenticatedKey struct - Authenticated key
-#[derive(Debug)]
-pub struct AuthenticatedKey {
-    pub title: String,
-    pub projects: Vec<String>,
-}
 
-// AuthenticatedData struct - Authenticated data
-#[derive(Debug)]
-pub struct AuthenticatedData {
-    pub authenticated: bool,
-    pub username: String,
-    pub api_key: AuthenticatedKey,
-}
 
-// impl clone for authenticated data
-impl Clone for AuthenticatedData {
-    fn clone(&self) -> Self {
-        AuthenticatedData {
-            authenticated: self.authenticated,
-            username: self.username.to_string(),
-            api_key: AuthenticatedKey {
-                title: self.api_key.title.to_string(),
-                projects: self.api_key.projects.clone(),
-            },
-        }
-    }
-}
-
-fn hash_map_to_document_meta(map: &HashMap<String, Value>) -> DocumentMeta {
-    DocumentMeta {
-        id: map["id"].as_str().unwrap().to_string(),
-        project: map["project"].as_str().unwrap().to_string(),
-        path: map["path"].as_str().unwrap().to_string(),
-        updated_at: map["updatedAt"].as_str().unwrap().to_string(),
-        created_at: map["createdAt"].as_str().unwrap().to_string(),
-    }
-}
 
 // Implementing JsonBank
 impl JsonBank {
@@ -450,13 +361,25 @@ impl JsonBank {
     }
 
     // create_document - create a document
-    pub fn create_document(&self, path: &str, content: &str) -> Result<DocumentMeta, JsbError> {
-        match self.read_post_request::<HashMap<String, Value>>(vec!["file", path]) {
-            Ok(res) => {
-                // convert to DocumentMeta
-                Ok(hash_map_to_document_meta(&res))
-            }
-            Err(err) => Err(err),
-        }
-    }
+    // pub fn create_document(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
+    //
+    //     // check if content.project is set
+    //     if content.project == "" {
+    //         return Err(JsbError {
+    //             code: "bad_request".to_string(),
+    //             message: "Project required".to_string(),
+    //         });
+    //     }
+    //
+    //     // check if content.name is set
+    //     if content.name == "" {
+    //         return Err(JsbError {
+    //             code: "bad_request".to_string(),
+    //             message: "Name required".to_string(),
+    //         });
+    //     }
+    //
+    //
+    //     let url = vec!["project", &content.project, "document"];
+    // }
 }
