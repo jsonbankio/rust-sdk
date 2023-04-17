@@ -415,6 +415,14 @@ impl JsonBank {
         }
     }
 
+    // is_authenticated - Check if user is authenticated
+    pub fn is_authenticated(&self) -> bool {
+        match &self.authenticated_data {
+            Some(data) => data.authenticated,
+            None => false,
+        }
+    }
+
     // get_own_document_meta - get own content meta from jsonbank
     pub fn get_own_document_meta(&self, path: &str) -> Result<DocumentMeta, JsbError> {
         match self.read_request::<HashMap<String, Value>>(vec!["meta/file", path]) {
@@ -430,5 +438,25 @@ impl JsonBank {
     // get_own_content - get own content from jsonbank
     pub fn get_own_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
         self.read_request(vec!["file", path])
+    }
+
+    // has_own_document - check if user has document
+    // This method will try to get document meta and if it fails it will return false
+    pub fn has_own_document(&self, path: &str) -> bool {
+        match self.get_own_document_meta(path) {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
+
+    // create_document - create a document
+    pub fn create_document(&self, path: &str, content: &str) -> Result<DocumentMeta, JsbError> {
+        match self.read_post_request::<HashMap<String, Value>>(vec!["file", path]) {
+            Ok(res) => {
+                // convert to DocumentMeta
+                Ok(hash_map_to_document_meta(&res))
+            }
+            Err(err) => Err(err),
+        }
     }
 }

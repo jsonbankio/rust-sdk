@@ -102,6 +102,9 @@ fn authenticate() {
 
     assert_eq!(auth.authenticated, true);
 
+    // test is_authenticated since we are authenticated
+    assert_eq!(jsb.is_authenticated(), true);
+
 
     // test get_username since we are authenticated
     let username = match jsb.get_username() {
