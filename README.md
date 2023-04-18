@@ -19,10 +19,8 @@ use jsonbank::{JsonBank, JsonObject};
 
 fn main() {
     let mut jsb = JsonBank::new_without_config();
-    // set host to dev server
-    jsb.set_host("http://localhost:2223");
-
-    // Call the send_get_request() function
+   
+    // get public content
     let data: JsonObject = match jsb.get_content("jsonbank/sdk-test/index.json") {
         Ok(data) => data,
         Err(err) => panic!("{:?}", err)
