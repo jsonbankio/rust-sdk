@@ -184,7 +184,7 @@ fn upload_document() {
 
 
     let file_path = "tests/upload.json";
-    let new_doc = match jsb.upload_document(UploadDocumentBody{
+    let new_doc = match jsb.upload_document(UploadDocumentBody {
         file_path: file_path.to_string(),
         project: data.project.clone(),
         name: None,
@@ -207,7 +207,7 @@ fn upload_document_to_folder() {
     let _ = jsb.delete_document(format!("{}/{}", data.project, "folder/upload.json").as_str());
 
     let file_path = "tests/upload.json";
-    let new_doc = match jsb.upload_document(UploadDocumentBody{
+    let new_doc = match jsb.upload_document(UploadDocumentBody {
         file_path: file_path.to_string(),
         project: data.project.clone(),
         name: None,

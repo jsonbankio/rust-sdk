@@ -480,9 +480,8 @@ impl JsonBank {
             });
         }
 
-        // let path = Path::new(&doc.file_path).
         let file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(doc.file_path);
-        println!("file_path: {:?}", file_path);
+
         // check if file exists using os
         if !file_path.exists() {
             return Err(JsbError {
