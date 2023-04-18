@@ -1,7 +1,8 @@
 extern crate dotenv;
 
 mod functions;
-use rand::prelude::*
+
+use std::time::{SystemTime, UNIX_EPOCH};
 use jsonbank::*;
 use functions::*;
 use jsonbank::structs::{CreateDocumentBody, UploadDocumentBody};
@@ -224,21 +225,26 @@ fn upload_document_to_folder() {
 fn update_own_document() {
     let (jsb, data) = init();
 
-    // get random numbers between 1111 and 9999
-    let rand = rand::gen_range(1111, 9999);
+    // get current timestamp
+     let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
 
-    let updated_doc = match jsb.update_own_document(&data.path, r#"{
+
+    let content = r#"{
     		"name": "JsonBank SDK Test File",
     		"author": "jsonbank",
-			"updated": true
-		}"#.to_string()) {
-        Ok(doc) => doc,
+			"updated": true,
+			"timestamp": "#.to_string() + &timestamp.to_string() + r#"
+		}"#;
+
+
+    let res = match jsb.update_own_document(&data.path, content.to_string()) {
+        Ok(res) => res,
         Err(err) => panic!("{:?}", err),
     };
 
-
-    assert!()
-
-
-    println!("{:?}", updated_doc);
+    // changed must be true
+    assert_eq!(res.changed, true);
 }
