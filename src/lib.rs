@@ -1,5 +1,5 @@
 // allow unused
-#![allow(unused)]
+// #![allow(unused)]
 
 extern crate reqwest;
 extern crate serde;
@@ -10,15 +10,12 @@ mod jsb_error;
 mod functions;
 pub mod structs;
 
-use serde::de::DeserializeOwned;
-use serde::Deserialize;
-use serde_json::{json, Value};
-use std::any::Any;
+use serde::{de::DeserializeOwned};
+use serde_json::Value;
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use jsb_error::*;
 use functions::*;
 use structs::*;
@@ -27,6 +24,10 @@ use structs::*;
 pub const JSONBANK: &str = "jsonbank";
 pub const JSONBANKIO: &str = "jsonbankio";
 pub const DEFAULT_HOST: &str = "https://api.jsonbank.io";
+
+// JsonObject struct - Json object is an alias for serde_json::Value
+// so adding serde_json as a dependency is not necessary
+pub type JsonValue = Value;
 
 // Keys struct - Public and private keys
 pub struct Keys {
@@ -313,7 +314,7 @@ impl JsonBank {
         match self.read_post_request::<HashMap<String, Value>>(vec!["authenticate"], None) {
             Ok(res) => {
                 // convert to AuthenticatedData
-                let mut data = AuthenticatedData {
+                let data = AuthenticatedData {
                     authenticated: res["authenticated"].as_bool().unwrap(),
                     username: res["username"].as_str().unwrap().to_string(),
                     api_key: AuthenticatedKey {
@@ -544,7 +545,7 @@ impl JsonBank {
                 } else {
                     Err(err)
                 }
-            },
+            }
         }
     }
 }
