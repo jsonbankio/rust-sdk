@@ -15,18 +15,20 @@ jsonbank = "0.1.0"
 Then import the library in your code
 
 ```rust
-use jsonbank::{JsonBank, JsonValue};
-use std::collections::HashMap;
+use jsonbank::{JsonBank, JsonObject};
 
 fn main() {
-    let jsb = JsonBank::new_without_config();
+    let mut jsb = JsonBank::new_without_config();
+    // set host to dev server
+    jsb.set_host("http://localhost:2223");
 
-    let content: HashMap<String, JasonValue> = match jsb.get_content("jsonbank/sdk-test/index.json") {
-        Ok(content) => content,
-        Err(err) => panic!("{:?}", err),
+    // Call the send_get_request() function
+    let data: JsonObject = match jsb.get_content("jsonbank/sdk-test/index.json") {
+        Ok(data) => data,
+        Err(err) => panic!("{:?}", err)
     };
-    
-    println!("{:?}", content);
+
+    println!("{:?}", data);
 }
 ```
 
