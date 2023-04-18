@@ -13,7 +13,7 @@ pub struct AuthenticatedData {
     pub api_key: AuthenticatedKey,
 }
 
-// impl clone for authenticated data
+// impl clone for authenticated data.
 impl Clone for AuthenticatedData {
     fn clone(&self) -> Self {
         AuthenticatedData {
