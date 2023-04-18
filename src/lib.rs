@@ -173,7 +173,7 @@ impl JsonBank {
 
     // send_get_request - Sends get request
     // This function sends the http request using reqwest
-    fn send_request<T: DeserializeOwned>(&self, method: &str, url: String, body: Option<HashMap<String, Value>>, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
+    fn send_request<T: DeserializeOwned>(&self, method: &str, url: String, body: Option<JsonObject>, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
         // build request
         let client = reqwest::blocking::Client::new();
         // add json header
@@ -232,7 +232,7 @@ impl JsonBank {
             Ok(response_text)
         } else {
             let code = res.status().to_string();
-            let data: HashMap<String, Value> = match res.json() {
+            let data: JsonObject = match res.json() {
                 Ok(text) => text,
                 Err(err) => {
                     return Err(JsbError::from_any(&err, None));
@@ -269,12 +269,12 @@ impl JsonBank {
     }
 
     // read_post_request - Sends post request to auth required endpoints using public key
-    fn read_post_request<T: DeserializeOwned>(&self, url: Vec<&str>, body: Option<HashMap<String, Value>>) -> Result<T, JsbError> {
+    fn read_post_request<T: DeserializeOwned>(&self, url: Vec<&str>, body: Option<JsonObject>) -> Result<T, JsbError> {
         self.send_request("POST", self.v1_url(url), body, true, false)
     }
 
     // write_request - Sends post request to auth required endpoints using private key
-    fn write_request<T: DeserializeOwned>(&self, url: Vec<&str>, body: Option<HashMap<String, Value>>) -> Result<T, JsbError> {
+    fn write_request<T: DeserializeOwned>(&self, url: Vec<&str>, body: Option<JsonObject>) -> Result<T, JsbError> {
         self.send_request("POST", self.v1_url(url), body, false, true)
     }
 
@@ -292,7 +292,7 @@ impl JsonBank {
 
     // get_document_meta - get public content meta from jsonbank
     pub fn get_document_meta(&self, id_or_path: &str) -> Result<DocumentMeta, JsbError> {
-        match self.public_request::<HashMap<String, Value>>(vec!["meta/f", id_or_path]) {
+        match self.public_request::<JsonObject>(vec!["meta/f", id_or_path]) {
             Ok(res) => {
                 // convert to DocumentMeta
                 Ok(hash_map_to_document_meta(&res))
@@ -317,7 +317,7 @@ impl JsonBank {
 impl JsonBank {
     // authenticate - Authenticate user
     pub fn authenticate(&mut self) -> Result<AuthenticatedData, JsbError> {
-        match self.read_post_request::<HashMap<String, Value>>(vec!["authenticate"], None) {
+        match self.read_post_request::<JsonObject>(vec!["authenticate"], None) {
             Ok(res) => {
                 // convert to AuthenticatedData
                 let data = AuthenticatedData {
@@ -359,7 +359,7 @@ impl JsonBank {
 
     // get_own_document_meta - get own content meta from jsonbank
     pub fn get_own_document_meta(&self, path: &str) -> Result<DocumentMeta, JsbError> {
-        match self.read_request::<HashMap<String, Value>>(vec!["meta/file", path]) {
+        match self.read_request::<JsonObject>(vec!["meta/file", path]) {
             Ok(res) => {
                 // convert to DocumentMeta
                 Ok(hash_map_to_document_meta(&res))
@@ -409,28 +409,25 @@ impl JsonBank {
 
         // check if content.content is a valid json
         if !is_valid_json(&content.content) {
-            return Err(JsbError {
-                code: "bad_request".to_string(),
-                message: "Content is not valid json".to_string(),
-            });
+            return Err(err_invalid_json());
         }
 
         // convert content to hashmap
-        let mut body: HashMap<String, Value> = HashMap::from([
-            ("name".to_string(), Value::String(content.name)),
-            ("project".to_string(), Value::String(content.project.clone())),
-            ("content".to_string(), Value::String(content.content)),
+        let mut body: JsonObject = HashMap::from([
+            ("name".to_string(), JsonValue::String(content.name)),
+            ("project".to_string(), JsonValue::String(content.project.clone())),
+            ("content".to_string(), JsonValue::String(content.content)),
         ]);
 
         // add folder if set
         if content.folder.is_some() {
-            body.insert("folder".to_string(), Value::String(content.folder.unwrap()));
+            body.insert("folder".to_string(), JsonValue::String(content.folder.unwrap()));
         }
 
 
         // send request
         let url = vec!["project", &content.project, "document"];
-        match self.write_request::<HashMap<String, Value>>(url, Some(body)) {
+        match self.write_request::<JsonObject>(url, Some(body)) {
             Ok(res) => {
                 // convert to NewDocument
                 Ok(NewDocument {
@@ -480,13 +477,26 @@ impl JsonBank {
     pub fn update_own_document(&self, id_or_path: &str, content: String) -> Result<UpdatedDocument, JsbError> {
         // check if content is a valid json
         if !is_valid_json(&content) {
-            return Err(ERR_INVALID_JSON);
+            return Err(err_invalid_json());
         }
 
         // create body
-        let body = HashMap::from([
-            ("content".to_string(), Value::String(content)),
+        let body = JsonObject::from([
+            ("content".to_string(), JsonValue::String(content)),
         ]);
+
+        // send request
+        let url = vec!["file", id_or_path];
+
+        match self.write_request::<JsonObject>(url, Some(body)) {
+            Ok(res) => {
+                // convert to UpdatedDocument
+                Ok(UpdatedDocument {
+                    changed: res["changed"].as_bool().unwrap_or(false),
+                })
+            }
+            Err(err) => Err(err),
+        }
     }
 
 
@@ -524,10 +534,7 @@ impl JsonBank {
 
         // check if file is valid json
         if !is_valid_json(&file_content) {
-            return Err(JsbError {
-                code: "invalid_file".to_string(),
-                message: "File is not valid json".to_string(),
-            });
+            return Err(err_invalid_json());
         }
 
         // set name if not set
@@ -551,7 +558,7 @@ impl JsonBank {
 
     // delete_document - delete a document
     pub fn delete_document(&self, path: &str) -> Result<DeletedDocument, JsbError> {
-        match self.delete_request::<HashMap<String, Value>>(vec!["file", path]) {
+        match self.delete_request::<JsonObject>(vec!["file", path]) {
             Ok(res) => {
                 // convert to DeletedDocument
                 Ok(DeletedDocument {

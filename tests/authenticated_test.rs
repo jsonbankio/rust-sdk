@@ -1,9 +1,7 @@
 extern crate dotenv;
 
 mod functions;
-
-use std::collections::HashMap;
-use serde_json::{Value};
+use rand::prelude::*
 use jsonbank::*;
 use functions::*;
 use jsonbank::structs::{CreateDocumentBody, UploadDocumentBody};
@@ -59,7 +57,7 @@ fn get_own_content() {
     let (jsb, data) = init();
 
     // get content by id
-    let content: HashMap<String, Value> = match jsb.get_own_content(&data.id.unwrap()) {
+    let content: JsonObject = match jsb.get_own_content(&data.id.unwrap()) {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };
@@ -67,7 +65,7 @@ fn get_own_content() {
     assert_eq!(content["author"], JSONBANK);
 
     // get content by path
-    let content: HashMap<String, Value> = match jsb.get_own_content(&data.path) {
+    let content: JsonObject = match jsb.get_own_content(&data.path) {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };
@@ -220,4 +218,27 @@ fn upload_document_to_folder() {
     assert_eq!(new_doc.project, data.project);
     // both paths should be the same
     assert_eq!(new_doc.path, "folder/upload.json");
+}
+
+#[test]
+fn update_own_document() {
+    let (jsb, data) = init();
+
+    // get random numbers between 1111 and 9999
+    let rand = rand::gen_range(1111, 9999);
+
+    let updated_doc = match jsb.update_own_document(&data.path, r#"{
+    		"name": "JsonBank SDK Test File",
+    		"author": "jsonbank",
+			"updated": true
+		}"#.to_string()) {
+        Ok(doc) => doc,
+        Err(err) => panic!("{:?}", err),
+    };
+
+
+    assert!()
+
+
+    println!("{:?}", updated_doc);
 }

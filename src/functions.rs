@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-use serde_json::Value;
-use crate::DocumentMeta;
+use crate::{DocumentMeta, JsonObject, JsonValue};
 use crate::structs::CreateDocumentBody;
 
 // hash_map_to_document_meta - converts a HashMap to a DocumentMeta
-pub fn hash_map_to_document_meta(map: &HashMap<String, Value>) -> DocumentMeta {
+pub fn hash_map_to_document_meta(map: &JsonObject) -> DocumentMeta {
     DocumentMeta {
         id: map["id"].as_str().unwrap().to_string(),
         project: map["project"].as_str().unwrap().to_string(),
@@ -16,7 +14,7 @@ pub fn hash_map_to_document_meta(map: &HashMap<String, Value>) -> DocumentMeta {
 
 // is_valid_json - checks if a string is valid JSON
 pub fn is_valid_json(json: &str) -> bool {
-    serde_json::from_str::<Value>(json).is_ok()
+    serde_json::from_str::<JsonValue>(json).is_ok()
 }
 
 // make_document_path - generate a document full path

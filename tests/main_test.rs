@@ -1,7 +1,5 @@
 mod functions;
 
-use std::collections::HashMap;
-use serde_json::{Value};
 use jsonbank::*;
 use functions::*;
 
@@ -23,7 +21,7 @@ fn get_content() {
     let (jsb, data) = init();
 
     // get content by id
-    let content: HashMap<String, Value> = match jsb.get_content(&data.id.unwrap()) {
+    let content: JsonObject = match jsb.get_content(&data.id.unwrap()) {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };
@@ -31,7 +29,7 @@ fn get_content() {
     assert_eq!(content["author"], JSONBANK);
 
     // get content by path
-    let content: HashMap<String, Value> = match jsb.get_content(&data.path) {
+    let content: JsonObject = match jsb.get_content(&data.path) {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };
@@ -69,7 +67,7 @@ fn get_github_content() {
     let (jsb, _data) = init();
 
     // get content by id
-    let content: HashMap<String, Value> = match jsb.get_github_content("jsonbankio/jsonbank-js/package.json") {
+    let content: JsonObject = match jsb.get_github_content("jsonbankio/jsonbank-js/package.json") {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };

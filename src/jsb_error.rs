@@ -64,7 +64,9 @@ pub struct ApiErrorResponse {
 
 
 // ====== Shared Errors ======
-pub const ERR_INVALID_JSON: JsbError = JsbError {
-    code: "invalid_json_content".to_string(),
-    message: "Content is not a valid JSON string".to_string(),
-};
+pub fn err_invalid_json() -> JsbError {
+    JsbError {
+        code: String::from("invalid_json_content"),
+        message: "Content is not a valid JSON string".to_string(),
+    }
+}
