@@ -25,9 +25,15 @@ pub const JSONBANK: &str = "jsonbank";
 pub const JSONBANKIO: &str = "jsonbankio";
 pub const DEFAULT_HOST: &str = "https://api.jsonbank.io";
 
-// JsonObject struct - Json object is an alias for serde_json::Value
+// JsonValue type - Json value is an alias for serde_json::Value
 // so adding serde_json as a dependency is not necessary
 pub type JsonValue = Value;
+
+// JsonObject type - Json object is an alias for HashMap<String, JsonValue>
+pub type JsonObject = HashMap<String, JsonValue>;
+
+// JsonArray type - Json Array is an alias for Vec<JsonValue>
+pub type JsonArray = Vec<JsonValue>;
 
 // Keys struct - Public and private keys
 pub struct Keys {
