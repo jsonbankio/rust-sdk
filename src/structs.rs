@@ -76,3 +76,9 @@ pub struct NewDocument {
 pub struct DeletedDocument {
     pub deleted: bool,
 }
+
+// UpdatedDocument struct - Updated document
+#[derive(Debug)]
+pub struct UpdatedDocument {
+    pub changed: bool,
+}

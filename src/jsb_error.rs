@@ -50,14 +50,21 @@ impl JsbError {
 }
 
 // API Error struct
-#[derive(Debug)]
-pub struct ApiError {
-    pub code: String,
-    pub message: String,
-}
+// #[derive(Debug)]
+// pub struct ApiError {
+//     pub code: String,
+//     pub message: String,
+// }
 
 // Api Error Response struct
 #[derive(Debug)]
 pub struct ApiErrorResponse {
-    pub error: ApiError,
+    pub error: JsbError,
 }
+
+
+// ====== Shared Errors ======
+pub const ERR_INVALID_JSON: JsbError = JsbError {
+    code: "invalid_json_content".to_string(),
+    message: "Content is not a valid JSON string".to_string(),
+};

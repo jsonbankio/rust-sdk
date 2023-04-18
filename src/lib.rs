@@ -11,7 +11,7 @@ mod functions;
 pub mod structs;
 
 use serde::{de::DeserializeOwned};
-use serde_json::Value;
+use serde_json::{Value};
 use std::collections::HashMap;
 use std::fmt::{Debug};
 use std::fs;
@@ -473,6 +473,20 @@ impl JsonBank {
                 }
             }
         }
+    }
+
+
+    // update_own_document - update a document
+    pub fn update_own_document(&self, id_or_path: &str, content: String) -> Result<UpdatedDocument, JsbError> {
+        // check if content is a valid json
+        if !is_valid_json(&content) {
+            return Err(ERR_INVALID_JSON);
+        }
+
+        // create body
+        let body = HashMap::from([
+            ("content".to_string(), Value::String(content)),
+        ]);
     }
 
 
