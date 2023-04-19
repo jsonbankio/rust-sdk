@@ -3,6 +3,12 @@ name = "jsonbank"
 version = "0.1.0"
 edition = "2021"
 homepage = "https://docs.jsonbank.io/sdk/rust"
+repository = "https://github.com/jsonbankio/rust-sdk"
+authors = ["Trapcodeio <hello@trapcode.io>"]
+description = "JsonBank.io Rust SDK"
+license = "MIT"
+readme = "README.md"
+keywords = ["jsonbank", "sdk", "rust"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
