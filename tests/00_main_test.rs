@@ -6,7 +6,11 @@ use functions::*;
 
 // init - initializes test
 fn init() -> (JsonBank, TestData) {
-    let jsb = JsonBank::new_without_config();
+    let env = load_env();
+
+    let mut jsb = JsonBank::new_without_config();
+    jsb.set_host(env.host.as_str());
+
     prepare_instance(jsb, false)
 }
 

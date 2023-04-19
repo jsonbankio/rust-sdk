@@ -40,3 +40,16 @@ pub fn prepare_instance(jsb: JsonBank, authenticated: bool) -> (JsonBank, TestDa
 
     (jsb, data)
 }
+
+
+// load env
+// this function loads the public and private keys from the environment file
+// at the root of the project
+pub fn load_env() -> Env {
+    dotenv::dotenv().ok();
+    Env {
+        host: std::env::var("JSB_HOST").unwrap_or("https://api.jsonbank.io".to_string()),
+        public_key: std::env::var("JSB_PUBLIC_KEY").unwrap_or("".to_string()),
+        private_key: std::env::var("JSB_PRIVATE_KEY").unwrap_or("".to_string())
+    }
+}
