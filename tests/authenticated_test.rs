@@ -240,6 +240,12 @@ fn update_own_document() {
 
     // changed must be true
     assert_eq!(res.changed, true);
+
+    // revert the changes
+    let _ = match jsb.update_own_document(&data.path, test_file_content()) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
 }
 
 #[test]

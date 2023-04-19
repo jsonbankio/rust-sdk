@@ -36,6 +36,7 @@ Create an .env file in the root of the project and add the following variables
 
 ```dotenv
 JSB_HOST="https://api.jsonbank.io"
+JSB_TIMEOUT=30000
 JSB_PUBLIC_KEY="your public key"
 JSB_PRIVATE_KEY="your private key"
 ```
