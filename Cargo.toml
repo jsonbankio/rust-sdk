@@ -9,6 +9,11 @@ description = "JsonBank.io Rust SDK"
 license = "MIT"
 readme = "README.md"
 keywords = ["jsonbank", "sdk", "rust"]
+exclude = [
+    ".idea/**/*",
+    ".vscode/**/*",
+    "tests/**/*"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
