@@ -37,6 +37,25 @@ pub struct CreateDocumentBody {
     pub content: String,
 }
 
+// CreateFolderBody struct - Create folder body
+#[derive(Debug)]
+pub struct CreateFolderBody {
+    pub name: String,
+    pub project: String,
+    pub folder: Option<String>,
+}
+
+// Impl clone for create folder body
+impl Clone for CreateFolderBody {
+    fn clone(&self) -> Self {
+        CreateFolderBody {
+            name: self.name.to_string(),
+            project: self.project.to_string(),
+            folder: self.folder.clone(),
+        }
+    }
+}
+
 // UploadDocumentBody struct - Upload document body
 #[derive(Debug)]
 pub struct UploadDocumentBody {
@@ -69,6 +88,25 @@ pub struct NewDocument {
     // this field is not returned by the api
     // it is populated by the `create_document_if_not_exists` function
     pub exists: bool,
+}
+
+// FolderStats struct - Folder stats
+#[derive(Debug)]
+pub struct FolderStats {
+    pub documents: i32,
+    pub folders: i32,
+}
+
+// Folder struct - New folder
+#[derive(Debug)]
+pub struct Folder {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub project: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub stats: Option<FolderStats>
 }
 
 // DeletedDocument struct - Deleted document

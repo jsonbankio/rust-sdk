@@ -46,3 +46,9 @@ Note: A single thread is required for test so that all tests can run in defined 
 ```bash
 cargo test -- --test-threads=1
 ```
+
+or using npm because a package.json file is included
+
+```bash
+npm run test
+```

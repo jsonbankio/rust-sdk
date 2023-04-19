@@ -5,7 +5,7 @@ mod functions;
 use std::time::{SystemTime, UNIX_EPOCH};
 use jsonbank::*;
 use functions::*;
-use jsonbank::structs::{CreateDocumentBody, UploadDocumentBody};
+use jsonbank::structs::{CreateDocumentBody, CreateFolderBody, Folder, UploadDocumentBody};
 
 
 #[derive(Debug)]
@@ -50,6 +50,22 @@ fn init() -> (JsonBank, TestData) {
     let jsb = JsonBank::new(config);
 
     prepare_instance(jsb, true)
+}
+
+
+#[test]
+fn has_own_document(){
+    let (jsb, data) = init();
+
+    // check if document exists by id
+    let has_id = jsb.has_own_document(&data.id.unwrap());
+
+    assert_eq!(has_id, true);
+
+    // check if document exists by path
+    let has_path = jsb.has_own_document(&data.path);
+
+    assert_eq!(has_path, true);
 }
 
 
@@ -199,6 +215,72 @@ fn upload_document() {
 }
 
 #[test]
+fn update_own_document() {
+    let (jsb, data) = init();
+
+    // get current timestamp
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+
+    let content = r#"{
+    		"name": "JsonBank SDK Test File",
+    		"author": "jsonbank",
+			"updated": true,
+			"timestamp": "#.to_string() + &timestamp.to_string() + r#"
+		}"#;
+
+
+    let res = match jsb.update_own_document(&data.path, content.to_string()) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    // changed must be true
+    assert_eq!(res.changed, true);
+}
+
+#[test]
+fn create_folder() {
+    let (jsb, data) = init();
+
+    let body = CreateFolderBody {
+        name: "folder".to_string(),
+        project: data.project.clone(),
+        folder: None,
+    };
+
+    let res = match jsb.create_folder(body) {
+        Ok(res) => res,
+        Err(err) => {
+            // if error code is `name.exists` then the folder already exists and we can continue without throwing an error
+            if err.code == "name.exists" {
+                // log the error but still return a NewFolder struct
+                eprintln!("Expected Error: {:?}", err);
+
+                Folder {
+                    id: "".to_string(),
+                    name: "folder".to_string(),
+                    project: data.project.clone(),
+                    created_at: "".to_string(),
+                    path: "folder".to_string(),
+                    updated_at: "".to_string(),
+                    stats: None
+                }
+            } else {
+                panic!("{:?}", err);
+            }
+        }
+    };
+
+    if res.name != "folder" || res.project != data.project {
+        panic!("New folder data mismatch");
+    }
+}
+
+#[test]
 fn upload_document_to_folder() {
     let (jsb, data) = init();
 
@@ -222,29 +304,73 @@ fn upload_document_to_folder() {
 }
 
 #[test]
-fn update_own_document() {
+fn get_folder() {
     let (jsb, data) = init();
 
-    // get current timestamp
-     let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    let f = format!("{}/{}", data.project, "folder");
 
-
-    let content = r#"{
-    		"name": "JsonBank SDK Test File",
-    		"author": "jsonbank",
-			"updated": true,
-			"timestamp": "#.to_string() + &timestamp.to_string() + r#"
-		}"#;
-
-
-    let res = match jsb.update_own_document(&data.path, content.to_string()) {
-        Ok(res) => res,
+    let folder = match jsb.get_folder(f.as_str()) {
+        Ok(folder) => folder,
         Err(err) => panic!("{:?}", err),
     };
 
-    // changed must be true
-    assert_eq!(res.changed, true);
+    assert_eq!(folder.name, "folder");
+    assert_eq!(folder.project, data.project);
+
+    // check if it works with id
+    let folder = match jsb.get_folder(folder.id.as_str()) {
+        Ok(folder) => folder,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(folder.name, "folder");
+    assert_eq!(folder.project, data.project);
+}
+
+#[test]
+fn get_folder_with_stats(){
+    let (jsb, data) = init();
+
+    let f = format!("{}/{}", data.project, "folder");
+
+    let folder = match jsb.get_folder_with_stats(f.as_str()) {
+        Ok(folder) => folder,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    println!("{:?}", folder);
+
+    assert_eq!(folder.name, "folder");
+    assert_eq!(folder.project, data.project);
+    assert_eq!(folder.stats.is_some(), true);
+
+    // check if it works with id
+    let folder = match jsb.get_folder_with_stats(folder.id.as_str()) {
+        Ok(folder) => folder,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(folder.name, "folder");
+    assert_eq!(folder.project, data.project);
+    assert_eq!(folder.stats.is_some(), true);
+}
+
+#[test]
+fn create_folder_if_not_exists() {
+    let (jsb, data) = init();
+
+    let body = CreateFolderBody {
+        name: "folder".to_string(),
+        project: data.project.clone(),
+        folder: None,
+    };
+
+    let res = match jsb.create_folder_if_not_exists(body) {
+        Ok(res) => res.0,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    if res.name != "folder" || res.project != data.project {
+        panic!("New folder data mismatch");
+    }
 }

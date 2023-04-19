@@ -211,7 +211,7 @@ impl JsonBank {
             match method {
                 "POST" => client.post(&url).json(&body.unwrap_or(HashMap::new())),
                 "DELETE" => client.delete(&url),
-                _ => client.get(&url)
+                _ => client.get(&url).query(&body.unwrap_or(HashMap::new())),
             }.headers(headers).send()
         } {
             Ok(res) => res,
@@ -264,8 +264,8 @@ impl JsonBank {
     }
 
     // read_request - Sends get request to auth required endpoints using public key
-    fn read_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
-        self.send_request("GET", self.v1_url(url), None, true, false)
+    fn read_request<T: DeserializeOwned>(&self, url: Vec<&str>, query: Option<JsonObject>) -> Result<T, JsbError> {
+        self.send_request("GET", self.v1_url(url), query, true, false)
     }
 
     // read_post_request - Sends post request to auth required endpoints using public key
@@ -359,7 +359,7 @@ impl JsonBank {
 
     // get_own_document_meta - get own content meta from jsonbank
     pub fn get_own_document_meta(&self, path: &str) -> Result<DocumentMeta, JsbError> {
-        match self.read_request::<JsonObject>(vec!["meta/file", path]) {
+        match self.read_request::<JsonObject>(vec!["meta/file", path], None) {
             Ok(res) => {
                 // convert to DocumentMeta
                 Ok(hash_map_to_document_meta(&res))
@@ -371,7 +371,7 @@ impl JsonBank {
 
     // get_own_content - get own content from jsonbank
     pub fn get_own_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
-        self.read_request(vec!["file", path])
+        self.read_request(vec!["file", path], None)
     }
 
     // has_own_document - check if user has document
@@ -575,4 +575,92 @@ impl JsonBank {
             }
         }
     }
+
+    // create_folder - create a folder
+    pub fn create_folder(&self, data: CreateFolderBody) -> Result<Folder, JsbError> {
+        // project is required
+        if data.project.is_empty() {
+            return Err(JsbError {
+                code: "bad_request".to_string(),
+                message: "Project required".to_string(),
+            });
+        }
+
+        // name is required
+        if data.name.is_empty() {
+            return Err(JsbError {
+                code: "bad_request".to_string(),
+                message: "Name required".to_string(),
+            });
+        }
+
+        // create body
+        let body = JsonObject::from([
+            ("name".to_string(), JsonValue::String(data.name)),
+            ("project".to_string(), JsonValue::String(data.project.clone())),
+        ]);
+
+        // send request
+        let url = vec!["project", &data.project, "folder"];
+        match self.write_request::<JsonObject>(url, Some(body)) {
+            Ok(res) => {
+                // convert to NewFolder
+                Ok(hash_map_to_folder(&res))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    //  private _get_folder - get a folder
+     fn _get_folder(&self, path: &str, include_stats: bool) -> Result<Folder, JsbError> {
+        // create query
+        let query = if include_stats {
+            Some(JsonObject::from([
+                ("stats".to_string(), JsonValue::Bool(true)),
+            ]))
+        } else {
+            None
+        };
+
+        match self.read_request::<JsonObject>(vec!["folder", path], query) {
+            Ok(res) => {
+                // convert to Folder
+                Ok(hash_map_to_folder(&res))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    // get_folder - get a folder
+    pub fn get_folder(&self, path: &str) -> Result<Folder, JsbError> {
+        self._get_folder(path, false)
+    }
+
+    // get_folder_with_stats - get a folder with stats
+    pub fn get_folder_with_stats(&self, path: &str) -> Result<Folder, JsbError> {
+        self._get_folder(path, true)
+    }
+
+    // create_folder_if_not_exists - create a folder if it does not exist
+    // First, it will try to create the folder, if it fails and folder error code is "name.exists" it will try to get the folder
+    // and return it.
+    pub fn create_folder_if_not_exists(&self, data: CreateFolderBody) -> Result<(Folder, bool), JsbError> {
+        match self.create_folder(data.clone()) {
+            Ok(res) => Ok((res, false)),
+            Err(err) => {
+                // check if error code is name.exists
+                if err.code == "name.exists" {
+                    let folder_path = make_folder_path(&data);
+                    // get folder
+                    match self.get_folder(folder_path.as_str()) {
+                        Ok(res) => Ok((res, true)),
+                        Err(err) => Err(err),
+                    }
+                } else {
+                    Err(err)
+                }
+            }
+        }
+    }
+
 }
