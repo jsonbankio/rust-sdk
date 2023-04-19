@@ -2,6 +2,8 @@
 
 The official repository for the JsonBank.io Rust SDK.
 
+[Documentation](https://docs.jsonbank.io/sdks/rust) | [crates.io](https://crates.io/crates/jsonbank)
+
 
 ## Usage
 
@@ -15,6 +17,8 @@ jsonbank = "0.1.0"
 Then import the library in your code
 
 ```rust
+extern crate jsonbank;
+
 use jsonbank::{JsonBank, JsonObject};
 
 fn main() {
@@ -36,7 +40,6 @@ Create an .env file in the root of the project and add the following variables
 
 ```dotenv
 JSB_HOST="https://api.jsonbank.io"
-JSB_TIMEOUT=30000
 JSB_PUBLIC_KEY="your public key"
 JSB_PRIVATE_KEY="your private key"
 ```

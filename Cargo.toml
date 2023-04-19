@@ -2,7 +2,7 @@
 name = "jsonbank"
 version = "0.1.0"
 edition = "2021"
-homepage = "https://docs.jsonbank.io/sdk/rust"
+homepage = "https://docs.jsonbank.io/sdks/rust"
 repository = "https://github.com/jsonbankio/rust-sdk"
 authors = ["Trapcodeio <hello@trapcode.io>"]
 description = "JsonBank.io Rust SDK"
