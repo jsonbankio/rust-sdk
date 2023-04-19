@@ -1,5 +1,11 @@
 use jsonbank::{JsonBank};
 
+pub struct Env {
+    pub host: String,
+    pub public_key: String,
+    pub private_key: String,
+}
+
 #[derive(Debug)]
 pub struct TestData {
     pub project: String,

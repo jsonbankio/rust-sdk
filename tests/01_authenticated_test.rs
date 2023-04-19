@@ -7,14 +7,6 @@ use jsonbank::*;
 use functions::*;
 use jsonbank::structs::{CreateDocumentBody, CreateFolderBody, Folder, UploadDocumentBody};
 
-
-#[derive(Debug)]
-struct Env {
-    host: String,
-    public_key: String,
-    private_key: String,
-}
-
 // test_file_content - returns test file content
 fn test_file_content() -> String {
     r#"{
