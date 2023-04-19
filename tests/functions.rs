@@ -9,10 +9,7 @@ pub struct TestData {
 }
 
 // prepare_instance - prepares instance for testing
-pub fn prepare_instance(mut jsb: JsonBank, authenticated: bool) -> (JsonBank, TestData) {
-    // set host to dev server
-    jsb.set_host("http://localhost:2223");
-
+pub fn prepare_instance(jsb: JsonBank, authenticated: bool) -> (JsonBank, TestData) {
     let project = if authenticated {
         // no username required for authenticated user
         "sdk-test".to_string()

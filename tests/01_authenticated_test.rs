@@ -29,9 +29,9 @@ fn test_file_content() -> String {
 fn load_env() -> Env {
     dotenv::dotenv().ok();
     Env {
-        host: std::env::var("JSB_HOST").unwrap(),
-        public_key: std::env::var("JSB_PUBLIC_KEY").unwrap(),
-        private_key: std::env::var("JSB_PRIVATE_KEY").unwrap(),
+        host: std::env::var("JSB_HOST").unwrap_or("https://api.jsonbank.io".to_string()),
+        public_key: std::env::var("JSB_PUBLIC_KEY").unwrap_or("".to_string()),
+        private_key: std::env::var("JSB_PRIVATE_KEY").unwrap_or("".to_string())
     }
 }
 
@@ -40,14 +40,15 @@ fn load_env() -> Env {
 fn init() -> (JsonBank, TestData) {
     let env = load_env();
     let config = InitConfig {
-        host: Some(env.host),
+        host: Some(env.host.clone()),
         keys: Some(Keys {
             public: Some(env.public_key),
             private: Some(env.private_key),
         }),
     };
 
-    let jsb = JsonBank::new(config);
+    let mut jsb = JsonBank::new(config);
+    jsb.set_host(env.host.as_str());
 
     prepare_instance(jsb, true)
 }
