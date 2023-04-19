@@ -11,7 +11,7 @@ Add the following to your Cargo.toml file
 
 ```toml
 [dependencies]
-jsonbank = "0.1.0"
+jsonbank = "0.1"
 ```
 
 Then import the library in your code
