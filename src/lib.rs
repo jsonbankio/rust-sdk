@@ -16,13 +16,14 @@ use std::collections::HashMap;
 use std::fmt::{Debug};
 use std::fs;
 use std::path::{PathBuf};
+use reqwest::blocking::Response;
 use jsb_error::*;
 use functions::*;
 use structs::*;
 
 
 pub const JSONBANK: &str = "jsonbank";
-pub const JSONBANKIO: &str = "jsonbankio";
+pub const JSONBANK_IO: &str = "jsonbankio";
 pub const DEFAULT_HOST: &str = "https://api.jsonbank.io";
 
 // JsonValue type - Json value is an alias for serde_json::Value
@@ -171,9 +172,70 @@ impl JsonBank {
         format!("{}/{}", self.endpoints.v1, paths.join("/"))
     }
 
-    // send_get_request - Sends get request
-    // This function sends the http request using reqwest
-    fn send_request<T: DeserializeOwned>(&self, method: &str, url: String, body: Option<JsonObject>, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
+    // process_response_error - Processes response error
+    fn process_response_error<T: DeserializeOwned>(&self, res: Response) -> Result<T, JsbError> {
+        let code = res.status().to_string();
+        let data: JsonObject = match res.json() {
+            Ok(text) => text,
+            Err(err) => {
+                return Err(JsbError::from_any(&err, None));
+            }
+        };
+
+        // get error object from data
+        let error = match data["error"].as_object() {
+            Some(err) => err,
+            None => {
+                return Err(JsbError {
+                    code,
+                    message: "Unknown error".to_string(),
+                });
+            }
+        };
+
+
+        Err(JsbError {
+            code: error["code"].as_str().unwrap().to_string(),
+            message: error["message"].as_str().unwrap().to_string(),
+        })
+    }
+
+    // process_response - Processes response
+    fn process_response<T: DeserializeOwned>(&self, res: Response) -> Result<T, JsbError> {
+        // Check if the response is successful
+        if res.status().is_success() {
+            let response_text: T = match res.json() {
+                Ok(text) => text,
+                Err(err) => {
+                    return Err(JsbError::from_any(&err, None));
+                }
+            };
+
+            Ok(response_text)
+        } else {
+            self.process_response_error(res)
+        }
+    }
+
+    // process_response_as_text - Processes response as text
+    fn process_response_as_text(&self, res: Response) -> Result<String, JsbError> {
+        // Check if the response is successful
+        if res.status().is_success() {
+            let response_text: String = match res.text() {
+                Ok(text) => text,
+                Err(err) => {
+                    return Err(JsbError::from_any(&err, None));
+                }
+            };
+
+            Ok(response_text)
+        } else {
+            self.process_response_error(res)
+        }
+    }
+
+    // make_request - Makes request
+    fn make_request(&self, method: &str, url: String, body: Option<JsonObject>, require_pub_key: bool, require_prv_key: bool) -> Result<Response, JsbError> {
         // build request
         let client = reqwest::blocking::Client::new();
         // add json header
@@ -207,60 +269,57 @@ impl JsonBank {
         }
 
         // send request
-        let res = match {
+        match {
             match method {
                 "POST" => client.post(&url).json(&body.unwrap_or(HashMap::new())),
                 "DELETE" => client.delete(&url),
                 _ => client.get(&url).query(&body.unwrap_or(HashMap::new())),
             }.headers(headers).send()
         } {
-            Ok(res) => res,
+            Ok(res) => Ok(res),
             Err(err) => {
                 return Err(JsbError::from_any(&err, None));
             }
+        }
+    }
+
+    // send_get_request - Sends get request
+    // This function sends the http request using reqwest
+    fn send_request<T: DeserializeOwned>(&self, method: &str, url: String, body: Option<JsonObject>, require_pub_key: bool, require_prv_key: bool) -> Result<T, JsbError> {
+        // make request
+        let res = match self.make_request(method, url, body, require_pub_key, require_prv_key) {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(err);
+            }
         };
 
-        // Check if the response is successful
-        if res.status().is_success() {
-            let response_text: T = match res.json() {
-                Ok(text) => text,
-                Err(err) => {
-                    return Err(JsbError::from_any(&err, None));
-                }
-            };
+        // process response
+        self.process_response(res)
+    }
 
-            Ok(response_text)
-        } else {
-            let code = res.status().to_string();
-            let data: JsonObject = match res.json() {
-                Ok(text) => text,
-                Err(err) => {
-                    return Err(JsbError::from_any(&err, None));
-                }
-            };
+    // send_request_as_text - Sends request and returns response as text
+    fn send_request_as_text(&self, method: &str, url: String, body: Option<JsonObject>, require_pub_key: bool, require_prv_key: bool) -> Result<String, JsbError> {
+        // make request
+        let res = match self.make_request(method, url, body, require_pub_key, require_prv_key) {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(err);
+            }
+        };
 
-            // get error object from data
-            let error = match data["error"].as_object() {
-                Some(err) => err,
-                None => {
-                    return Err(JsbError {
-                        code,
-                        message: "Unknown error".to_string(),
-                    });
-                }
-            };
-
-
-            Err(JsbError {
-                code: error["code"].as_str().unwrap().to_string(),
-                message: error["message"].as_str().unwrap().to_string(),
-            })
-        }
+        // process response
+        self.process_response_as_text(res)
     }
 
     // public_request - Sends get request to public endpoint
     fn public_request<T: DeserializeOwned>(&self, url: Vec<&str>) -> Result<T, JsbError> {
         self.send_request("GET", self.public_url(url), None, false, false)
+    }
+
+    // public_request_as_text - Sends get request to public endpoint and returns response as text
+    fn public_request_as_text(&self, url: Vec<&str>) -> Result<String, JsbError> {
+        self.send_request_as_text("GET", self.public_url(url), None, false, false)
     }
 
     // read_request - Sends get request to auth required endpoints using public key
@@ -304,6 +363,11 @@ impl JsonBank {
     // get_content - get public content from jsonbank
     pub fn get_content<T: DeserializeOwned>(&self, id_or_path: &str) -> Result<T, JsbError> {
         self.public_request::<T>(vec!["f", id_or_path])
+    }
+
+    // get_content_as_string - get public content as string from jsonbank
+    pub fn get_content_as_string(&self, id_or_path: &str) -> Result<String, JsbError> {
+        self.public_request::<String>(vec!["f", id_or_path])
     }
 
     // get_github_content - get content from github
@@ -612,7 +676,7 @@ impl JsonBank {
     }
 
     //  private _get_folder - get a folder
-     fn _get_folder(&self, path: &str, include_stats: bool) -> Result<Folder, JsbError> {
+    fn _get_folder(&self, path: &str, include_stats: bool) -> Result<Folder, JsbError> {
         // create query
         let query = if include_stats {
             Some(JsonObject::from([
@@ -662,5 +726,4 @@ impl JsonBank {
             }
         }
     }
-
 }

@@ -79,5 +79,5 @@ fn get_github_content() {
     println!("{:?}", content);
 
     assert_eq!(content["name"], JSONBANK);
-    assert_eq!(content["author"], JSONBANKIO);
+    assert_eq!(content["author"], JSONBANK_IO);
 }
