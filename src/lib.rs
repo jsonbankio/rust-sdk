@@ -217,8 +217,8 @@ impl JsonBank {
         }
     }
 
-    // process_response_as_text - Processes response as text
-    fn process_response_as_text(&self, res: Response) -> Result<String, JsbError> {
+    // process_response_as_string - Processes response as text
+    fn process_response_as_string(&self, res: Response) -> Result<String, JsbError> {
         // Check if the response is successful
         if res.status().is_success() {
             let response_text: String = match res.text() {
@@ -298,8 +298,8 @@ impl JsonBank {
         self.process_response(res)
     }
 
-    // send_request_as_text - Sends request and returns response as text
-    fn send_request_as_text(&self, method: &str, url: String, body: Option<JsonObject>, require_pub_key: bool, require_prv_key: bool) -> Result<String, JsbError> {
+    // send_request_as_string - Sends request and returns response as text
+    fn send_request_as_string(&self, method: &str, url: String, body: Option<JsonObject>, require_pub_key: bool, require_prv_key: bool) -> Result<String, JsbError> {
         // make request
         let res = match self.make_request(method, url, body, require_pub_key, require_prv_key) {
             Ok(res) => res,
@@ -309,7 +309,7 @@ impl JsonBank {
         };
 
         // process response
-        self.process_response_as_text(res)
+        self.process_response_as_string(res)
     }
 
     // public_request - Sends get request to public endpoint
@@ -317,14 +317,19 @@ impl JsonBank {
         self.send_request("GET", self.public_url(url), None, false, false)
     }
 
-    // public_request_as_text - Sends get request to public endpoint and returns response as text
-    fn public_request_as_text(&self, url: Vec<&str>) -> Result<String, JsbError> {
-        self.send_request_as_text("GET", self.public_url(url), None, false, false)
+    // public_request_as_string - Sends get request to public endpoint and returns response as text
+    fn public_request_as_string(&self, url: Vec<&str>) -> Result<String, JsbError> {
+        self.send_request_as_string("GET", self.public_url(url), None, false, false)
     }
 
     // read_request - Sends get request to auth required endpoints using public key
     fn read_request<T: DeserializeOwned>(&self, url: Vec<&str>, query: Option<JsonObject>) -> Result<T, JsbError> {
         self.send_request("GET", self.v1_url(url), query, true, false)
+    }
+
+    // read_request_as_string - Sends get request to auth required endpoints using public key and returns response as text
+    fn read_request_as_string(&self, url: Vec<&str>, query: Option<JsonObject>) -> Result<String, JsbError> {
+        self.send_request_as_string("GET", self.v1_url(url), query, true, false)
     }
 
     // read_post_request - Sends post request to auth required endpoints using public key
@@ -367,12 +372,17 @@ impl JsonBank {
 
     // get_content_as_string - get public content as string from jsonbank
     pub fn get_content_as_string(&self, id_or_path: &str) -> Result<String, JsbError> {
-        self.public_request::<String>(vec!["f", id_or_path])
+        self.public_request_as_string(vec!["f", id_or_path])
     }
 
     // get_github_content - get content from github
     pub fn get_github_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
         self.public_request(vec!["gh", path])
+    }
+
+    // get_github_content_as_string - get content as string from github
+    pub fn get_github_content_as_string(&self, path: &str) -> Result<String, JsbError> {
+        self.public_request_as_string(vec!["gh", path])
     }
 }
 
@@ -436,6 +446,11 @@ impl JsonBank {
     // get_own_content - get own content from jsonbank
     pub fn get_own_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
         self.read_request(vec!["file", path], None)
+    }
+
+    // get_own_content_as_string - get own content as string from jsonbank
+    pub fn get_own_content_as_string(&self, path: &str) -> Result<String, JsbError> {
+        self.read_request_as_string(vec!["file", path], None)
     }
 
     // has_own_document - check if user has document

@@ -41,6 +41,29 @@ fn get_content() {
     assert_eq!(content["author"], JSONBANK);
 }
 
+#[test]
+fn get_content_as_string(){
+    let (jsb, data) = init();
+
+    // get content by id
+    let content = match jsb.get_content_as_string(&data.id.unwrap()) {
+        Ok(content) => content,
+        Err(err) => panic!("{:?}", err),
+    };
+
+   // string contains JSONBANK
+    assert!(content.contains(JSONBANK));
+
+    // get content by path
+    let content = match jsb.get_content_as_string(&data.path) {
+        Ok(content) => content,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    // string contains JSONBANK
+    assert!(content.contains(JSONBANK));
+}
+
 
 #[test]
 fn get_document_meta() {
@@ -80,4 +103,18 @@ fn get_github_content() {
 
     assert_eq!(content["name"], JSONBANK);
     assert_eq!(content["author"], JSONBANK_IO);
+}
+
+#[test]
+fn get_github_content_as_string(){
+    let (jsb, _data) = init();
+
+    // get content by id
+    let content = match jsb.get_github_content_as_string("jsonbankio/jsonbank-js/package.json") {
+        Ok(content) => content,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    // string contains JSONBANK
+    assert!(content.contains("prepublishOnly"));
 }
