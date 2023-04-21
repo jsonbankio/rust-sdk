@@ -17,13 +17,11 @@ jsonbank = "0.1"
 Then import the library in your code
 
 ```rust
-extern crate jsonbank;
-
 use jsonbank::{JsonBank, JsonObject};
 
 fn main() {
-    let mut jsb = JsonBank::new_without_config();
-   
+    let jsb = JsonBank::new_without_config();
+    
     // get public content
     let data: JsonObject = match jsb.get_content("jsonbank/sdk-test/index.json") {
         Ok(data) => data,
