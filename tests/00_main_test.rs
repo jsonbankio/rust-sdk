@@ -42,7 +42,7 @@ fn get_content() {
 }
 
 #[test]
-fn get_content_as_string(){
+fn get_content_as_string() {
     let (jsb, data) = init();
 
     // get content by id
@@ -51,7 +51,7 @@ fn get_content_as_string(){
         Err(err) => panic!("{:?}", err),
     };
 
-   // string contains JSONBANK
+    // string contains JSONBANK
     assert!(content.contains(JSONBANK));
 
     // get content by path
@@ -106,7 +106,7 @@ fn get_github_content() {
 }
 
 #[test]
-fn get_github_content_as_string(){
+fn get_github_content_as_string() {
     let (jsb, _data) = init();
 
     // get content by id
@@ -115,6 +115,6 @@ fn get_github_content_as_string(){
         Err(err) => panic!("{:?}", err),
     };
 
-    // string contains JSONBANK
+    // string contains prepublishOnly
     assert!(content.contains("prepublishOnly"));
 }
