@@ -71,12 +71,20 @@ pub struct JsonBank {
 }
 
 
+// ContentSize struct - Content size
+#[derive(Debug)]
+pub struct ContentSize {
+    pub number: u64,
+    pub string: String,
+}
+
 // DocumentMeta struct - Document meta
 #[derive(Debug)]
 pub struct DocumentMeta {
     pub id: String,
     pub project: String,
     pub path: String,
+    pub content_size: ContentSize,
     pub updated_at: String,
     pub created_at: String,
 }
@@ -359,7 +367,7 @@ impl JsonBank {
         match self.public_request::<JsonObject>(vec!["meta/f", id_or_path]) {
             Ok(res) => {
                 // convert to DocumentMeta
-                Ok(hash_map_to_document_meta(&res))
+                Ok(json_object_to_document_meta(&res))
             }
             Err(err) => Err(err),
         }
@@ -436,7 +444,7 @@ impl JsonBank {
         match self.read_request::<JsonObject>(vec!["meta/file", path], None) {
             Ok(res) => {
                 // convert to DocumentMeta
-                Ok(hash_map_to_document_meta(&res))
+                Ok(json_object_to_document_meta(&res))
             }
             Err(err) => Err(err),
         }
@@ -684,7 +692,7 @@ impl JsonBank {
         match self.write_request::<JsonObject>(url, Some(body)) {
             Ok(res) => {
                 // convert to NewFolder
-                Ok(hash_map_to_folder(&res))
+                Ok(json_object_to_folder(&res))
             }
             Err(err) => Err(err),
         }
@@ -704,7 +712,7 @@ impl JsonBank {
         match self.read_request::<JsonObject>(vec!["folder", path], query) {
             Ok(res) => {
                 // convert to Folder
-                Ok(hash_map_to_folder(&res))
+                Ok(json_object_to_folder(&res))
             }
             Err(err) => Err(err),
         }

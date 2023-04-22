@@ -1,19 +1,25 @@
-use crate::{DocumentMeta, JsonObject, JsonValue};
+use crate::{ContentSize, DocumentMeta, JsonObject, JsonValue};
 use crate::structs::{CreateDocumentBody, CreateFolderBody, Folder, FolderStats};
 
 // hash_map_to_document_meta - converts a HashMap to a DocumentMeta
-pub fn hash_map_to_document_meta(map: &JsonObject) -> DocumentMeta {
+pub fn json_object_to_document_meta(map: &JsonObject) -> DocumentMeta {
+    let size = map["contentSize"].as_object().unwrap();
+
     DocumentMeta {
         id: map["id"].as_str().unwrap().to_string(),
         project: map["project"].as_str().unwrap().to_string(),
         path: map["path"].as_str().unwrap().to_string(),
+        content_size: ContentSize {
+            number: size["number"].as_u64().unwrap(),
+            string: size["string"].as_str().unwrap().to_string(),
+        },
         updated_at: map["updatedAt"].as_str().unwrap().to_string(),
         created_at: map["createdAt"].as_str().unwrap().to_string(),
     }
 }
 
 // hash_map_to_folder - converts a HashMap to a Folder
-pub fn hash_map_to_folder(map: &JsonObject) -> Folder {
+pub fn json_object_to_folder(map: &JsonObject) -> Folder {
     // if stats exists, convert it to a FolderStats
     let stats = if map.contains_key("stats") {
         let stats_map = map["stats"].as_object().unwrap();

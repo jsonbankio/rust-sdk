@@ -78,6 +78,7 @@ fn get_document_meta() {
     assert_eq!(user_path(meta.project), data.project);
     assert_eq!(meta.path, data.name);
 
+
     // get metadata by path
     let meta = match jsb.get_document_meta(&data.path) {
         Ok(meta) => meta,

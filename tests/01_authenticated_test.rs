@@ -3,7 +3,7 @@ extern crate dotenv;
 mod functions;
 
 use std::time::{SystemTime, UNIX_EPOCH};
-use jsonbank::*;
+use jsonbank::{JsonBank, InitConfig, Keys, JsonObject, JSONBANK};
 use functions::*;
 use jsonbank::structs::{CreateDocumentBody, CreateFolderBody, Folder, UploadDocumentBody};
 
