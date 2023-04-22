@@ -42,6 +42,23 @@ fn get_content() {
 }
 
 #[test]
+fn get_array_content() {
+    let (jsb, _) = init();
+
+    // get content by id
+    let content: JsonValue = match jsb.get_github_content("jsonbankio/documentation/github-test-array.json") {
+        Ok(content) => content,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    println!("{:?}", content);
+
+    assert_eq!(content[0], 1);
+    assert_eq!(content[1], "MultiType Array");
+    assert_eq!(content[2].as_object().unwrap()["name"], "github-test-array.json");
+}
+
+#[test]
 fn get_content_as_string() {
     let (jsb, data) = init();
 
