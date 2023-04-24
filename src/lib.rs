@@ -70,7 +70,6 @@ pub struct JsonBank {
 }
 
 
-
 // Implementing JsonBank
 impl JsonBank {
     // has_key - Checks if a key is provided either public or private
@@ -266,9 +265,7 @@ impl JsonBank {
             }.headers(headers).send()
         } {
             Ok(res) => Ok(res),
-            Err(err) => {
-                return Err(JsbError::from_any(&err, None));
-            }
+            Err(err) => Err(JsbError::from_any(&err, None))
         }
     }
 
