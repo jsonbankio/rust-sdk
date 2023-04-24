@@ -28,13 +28,32 @@ impl Clone for AuthenticatedData {
 }
 
 
+// ContentSize struct - Content size
+#[derive(Debug)]
+pub struct ContentSize {
+    pub number: u64,
+    pub string: String,
+}
+
+// DocumentMeta struct - Document meta
+#[derive(Debug)]
+pub struct DocumentMeta {
+    pub id: String,
+    pub project: String,
+    pub path: String,
+    pub content_size: ContentSize,
+    pub updated_at: String,
+    pub created_at: String,
+}
+
+
 // CreateDocumentBody struct - Create document body
 #[derive(Debug)]
 pub struct CreateDocumentBody {
     pub name: String,
     pub project: String,
-    pub folder: Option<String>,
     pub content: String,
+    pub folder: Option<String>,
 }
 
 // CreateFolderBody struct - Create folder body

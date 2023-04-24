@@ -6,14 +6,13 @@ extern crate serde;
 extern crate serde_json;
 
 
-mod jsb_error;
 mod functions;
+pub mod jsb_error;
 pub mod structs;
 
 use serde::{de::DeserializeOwned};
 use serde_json::{Value};
 use std::collections::HashMap;
-use std::fmt::{Debug};
 use std::fs;
 use std::path::{PathBuf};
 use reqwest::blocking::Response;
@@ -62,32 +61,14 @@ pub struct Endpoints {
 
 // JsonBank struct - Sdk Instance
 pub struct JsonBank {
-    pub config: Config,
     // Config
-    pub endpoints: Endpoints,
+    pub config: Config,
     // Endpoints
-    // memory cache
+    pub endpoints: Endpoints,
+    // Authenticated data
     authenticated_data: Option<AuthenticatedData>,
 }
 
-
-// ContentSize struct - Content size
-#[derive(Debug)]
-pub struct ContentSize {
-    pub number: u64,
-    pub string: String,
-}
-
-// DocumentMeta struct - Document meta
-#[derive(Debug)]
-pub struct DocumentMeta {
-    pub id: String,
-    pub project: String,
-    pub path: String,
-    pub content_size: ContentSize,
-    pub updated_at: String,
-    pub created_at: String,
-}
 
 
 // Implementing JsonBank
@@ -467,7 +448,7 @@ impl JsonBank {
         self.get_own_document_meta(path).is_ok()
     }
 
-    // create_document - create a document
+    // create_document - create a document.
     pub fn create_document(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
 
         // check if content.project is set
@@ -699,7 +680,7 @@ impl JsonBank {
     }
 
     //  private _get_folder - get a folder
-    fn _get_folder(&self, path: &str, include_stats: bool) -> Result<Folder, JsbError> {
+    fn ___get_folder(&self, path: &str, include_stats: bool) -> Result<Folder, JsbError> {
         // create query
         let query = if include_stats {
             Some(JsonObject::from([
@@ -720,12 +701,12 @@ impl JsonBank {
 
     // get_folder - get a folder
     pub fn get_folder(&self, path: &str) -> Result<Folder, JsbError> {
-        self._get_folder(path, false)
+        self.___get_folder(path, false)
     }
 
     // get_folder_with_stats - get a folder with stats
     pub fn get_folder_with_stats(&self, path: &str) -> Result<Folder, JsbError> {
-        self._get_folder(path, true)
+        self.___get_folder(path, true)
     }
 
     // create_folder_if_not_exists - create a folder if it does not exist

@@ -2,7 +2,7 @@
 
 The official repository for the JsonBank.io Rust SDK.
 
-[Documentation](https://docs.jsonbank.io/sdks/rust) | [crates.io](https://crates.io/crates/jsonbank)
+[Documentation](https://docs.jsonbank.io/sdks/rust) | [crates.io](https://crates.io/crates/jsonbank) | [docs.rs](https://docs.rs/jsonbank/latest/jsonbank/)
 
 
 ## Usage

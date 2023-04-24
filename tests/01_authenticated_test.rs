@@ -34,6 +34,31 @@ fn init() -> (JsonBank, TestData) {
 
 
 #[test]
+fn authenticate() {
+    let (mut jsb, _data) = init();
+
+    let auth = match jsb.authenticate() {
+        Ok(auth) => auth,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(auth.authenticated, true);
+
+    // test is_authenticated since we are authenticated
+    assert_eq!(jsb.is_authenticated(), true);
+
+
+    // test get_username since we are authenticated
+    let username = match jsb.get_username() {
+        Ok(username) => username,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(username, JSONBANK);
+}
+
+
+#[test]
 fn has_own_document(){
     let (jsb, data) = init();
 
@@ -94,29 +119,7 @@ fn get_own_document_meta() {
     assert_eq!(meta.path, data.name);
 }
 
-#[test]
-fn authenticate() {
-    let (mut jsb, _data) = init();
 
-    let auth = match jsb.authenticate() {
-        Ok(auth) => auth,
-        Err(err) => panic!("{:?}", err),
-    };
-
-    assert_eq!(auth.authenticated, true);
-
-    // test is_authenticated since we are authenticated
-    assert_eq!(jsb.is_authenticated(), true);
-
-
-    // test get_username since we are authenticated
-    let username = match jsb.get_username() {
-        Ok(username) => username,
-        Err(err) => panic!("{:?}", err),
-    };
-
-    assert_eq!(username, JSONBANK);
-}
 
 #[test]
 fn create_document() {
@@ -232,13 +235,11 @@ fn update_own_document() {
 fn create_folder() {
     let (jsb, data) = init();
 
-    let body = CreateFolderBody {
+    let res = match jsb.create_folder(CreateFolderBody {
         name: "folder".to_string(),
         project: data.project.clone(),
         folder: None,
-    };
-
-    let res = match jsb.create_folder(body) {
+    }) {
         Ok(res) => res,
         Err(err) => {
             // if error code is `name.exists` then the folder already exists and we can continue without throwing an error
