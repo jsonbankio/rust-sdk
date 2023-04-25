@@ -64,7 +64,7 @@ pub struct CreateDocumentBody {
     pub name: String,
     /// The project the document belongs to.
     pub project: String,
-    /// The [String](std::string::String) content of the document.
+    /// The [String](String) content of the document.
     pub content: String,
     /// The folder the document belongs to. if not provided, the document will be created in the root of the project.
     pub folder: Option<String>,

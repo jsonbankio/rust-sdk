@@ -1,7 +1,7 @@
 use crate::{ContentSize, DocumentMeta, JsonObject, JsonValue};
 use crate::structs::{CreateDocumentBody, CreateFolderBody, Folder, FolderStats};
 
-// hash_map_to_document_meta - converts a HashMap to a DocumentMeta
+/// Converts a HashMap to a DocumentMeta struct
 pub fn json_object_to_document_meta(map: &JsonObject) -> DocumentMeta {
     let size = map["contentSize"].as_object().unwrap();
 
@@ -18,7 +18,7 @@ pub fn json_object_to_document_meta(map: &JsonObject) -> DocumentMeta {
     }
 }
 
-// hash_map_to_folder - converts a HashMap to a Folder
+/// Converts a HashMap to a Folder
 pub fn json_object_to_folder(map: &JsonObject) -> Folder {
     // if stats exists, convert it to a FolderStats
     let stats = if map.contains_key("stats") {
@@ -42,13 +42,13 @@ pub fn json_object_to_folder(map: &JsonObject) -> Folder {
     }
 }
 
-// is_valid_json - checks if a string is valid JSON
+/// checks if a string is valid JSON
 pub fn is_valid_json(json: &str) -> bool {
     serde_json::from_str::<JsonValue>(json).is_ok()
 }
 
-// make_document_path - generate a document full path
-// if the document has a folder, the folder will be prepended to the document name
+/// Generate a document full path.
+/// If the document has a folder, the folder will be prepended to the document name
 pub fn make_document_path(document: &CreateDocumentBody) -> String {
     let mut folder = String::new();
 
@@ -60,8 +60,8 @@ pub fn make_document_path(document: &CreateDocumentBody) -> String {
     format!("{}/{}{}", document.project, folder, document.name)
 }
 
-// make_folder_path - generate a folder full path
-// if the folder has a parent folder, the parent folder will be prepended to the folder name
+/// Generate a folder full path.
+/// If the folder has a parent folder, the parent folder will be prepended to the folder name
 pub fn make_folder_path(folder: &CreateFolderBody) -> String {
     let mut parent_folder = String::new();
 

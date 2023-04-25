@@ -63,12 +63,18 @@ fn has_own_document(){
     let (jsb, data) = init();
 
     // check if document exists by id
-    let has_id = jsb.has_own_document(&data.id.unwrap());
+    let has_id = match jsb.has_own_document(&data.id.unwrap()) {
+        Ok(has) => has,
+        Err(err) => panic!("{:?}", err),
+    };
 
     assert_eq!(has_id, true);
 
     // check if document exists by path
-    let has_path = jsb.has_own_document(&data.path);
+    let has_path = match  jsb.has_own_document(&data.path) {
+        Ok(has) => has,
+        Err(err) => panic!("{:?}", err),
+    };
 
     assert_eq!(has_path, true);
 }

@@ -1,9 +1,11 @@
 use std::{fmt::Display, fmt::Formatter, error::Error, any::Any};
 
-// JsbError struct - Error struct
+/// JsonBank Error Struct
 #[derive(Debug)]
 pub struct JsbError {
+    /// The code of the error
     pub code: String,
+    /// The message of the error
     pub message: String,
 }
 
@@ -16,7 +18,8 @@ impl Display for JsbError {
 impl Error for JsbError {}
 
 impl JsbError {
-    // convert any error to jsb error
+    /// convert any error to jsb error.
+    /// If the error is already a jsb error, it will be returned as is.
     pub fn from_any(err: &dyn Any, _code: Option<&str>) -> JsbError {
         let mut code = _code.unwrap_or("500");
 
@@ -49,21 +52,17 @@ impl JsbError {
     }
 }
 
-// API Error struct
-// #[derive(Debug)]
-// pub struct ApiError {
-//     pub code: String,
-//     pub message: String,
-// }
-
-// Api Error Response struct
+/// Api Error Response struct
 #[derive(Debug)]
 pub struct ApiErrorResponse {
+    /// The JsonBank error
     pub error: JsbError,
 }
 
 
 // ====== Shared Errors ======
+
+/// Returns a JsbError with code "invalid_json_content"
 pub fn err_invalid_json() -> JsbError {
     JsbError {
         code: String::from("invalid_json_content"),

@@ -7,8 +7,11 @@ extern crate serde_json;
 
 
 mod functions;
-pub mod jsb_error;
+/// Package structs
 pub mod structs;
+/// Package error module
+pub mod error;
+
 
 use serde::{de::DeserializeOwned};
 use serde_json::{Value};
@@ -16,55 +19,58 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{PathBuf};
 use reqwest::blocking::Response;
-use jsb_error::*;
+use error::*;
 use functions::*;
 use structs::*;
 
 
+/// The keyword `jsonbank`
 pub const JSONBANK: &str = "jsonbank";
+/// The keyword `jsonbankio`
 pub const JSONBANK_IO: &str = "jsonbankio";
+/// The default host
 pub const DEFAULT_HOST: &str = "https://api.jsonbank.io";
 
-// JsonValue type - Json value is an alias for serde_json::Value
+/// An alias for `serde_json::Value`
 // so adding serde_json as a dependency is not necessary
 pub type JsonValue = Value;
 
-// JsonObject type - Json object is an alias for HashMap<String, JsonValue>
+/// An alias for `HashMap<String, JsonValue>`
 pub type JsonObject = HashMap<String, JsonValue>;
 
-// JsonArray type - Json Array is an alias for Vec<JsonValue>
+/// An alias for `Vec<JsonValue>`
 pub type JsonArray = Vec<JsonValue>;
 
-// Keys struct - Public and private keys
+/// Holds the public and private keys
 pub struct Keys {
     pub public: Option<String>,
     pub private: Option<String>,
 }
 
-// Config struct - Host and keys and other config
+/// The configuration struct
 pub struct Config {
     pub host: String,
     keys: Option<Keys>, // Keys
 }
 
-// Init Config - Minimal config needed to initialize
+/// Minimal Config struct needed to initialize.
 pub struct InitConfig {
     pub host: Option<String>,
     pub keys: Option<Keys>,
 }
 
 // Endpoints struct - Endpoints
-pub struct Endpoints {
-    pub v1: String,
-    pub public: String,
+struct Endpoints {
+    v1: String,
+    public: String,
 }
 
-// JsonBank struct - Sdk Instance
+/// JsonBank SDK Instance
 pub struct JsonBank {
-    // Config
+    /// Instance Config
     pub config: Config,
     // Endpoints
-    pub endpoints: Endpoints,
+    endpoints: Endpoints,
     // Authenticated data
     authenticated_data: Option<AuthenticatedData>,
 }
@@ -72,7 +78,7 @@ pub struct JsonBank {
 
 // Implementing JsonBank
 impl JsonBank {
-    // has_key - Checks if a key is provided either public or private
+    // Checks if a key is provided either public or private
     fn has_key(&self, key: &str) -> bool {
         // check if keys are provided
         if self.config.keys.is_none() {
@@ -92,7 +98,7 @@ impl JsonBank {
         false
     }
 
-    // get_key - Returns the key
+    // Returns a public or private key depending on the key parameter
     fn get_key(&self, key: &str) -> String {
         // check if keys are provided
         if self.config.keys.is_none() {
@@ -120,7 +126,20 @@ impl JsonBank {
         }
     }
 
-    // New method - Returns JsonBank struct
+    /// Initialize JsonBank SDK Instance
+    /// # Arguments
+    /// * `conf` - The minimal config needed to initialize
+    /// # Example
+    /// ```
+    /// # use jsonbank::{JsonBank, InitConfig, Keys};
+    /// let jsb = JsonBank::new(InitConfig {
+    ///     host: None, // use default host
+    ///     keys: Some(Keys {
+    ///     public: Some("Your public key".to_string()),
+    ///     private: Some("Your private key".to_string()),
+    ///     }),
+    /// });
+    /// ```
     pub fn new(conf: InitConfig) -> Self {
         let host = conf.host.unwrap_or(DEFAULT_HOST.to_string());
 
@@ -137,7 +156,12 @@ impl JsonBank {
         JsonBank { config, endpoints, authenticated_data: None }
     }
 
-    // New using default config - Returns JsonBank struct
+    /// Initialize JsonBank SDK Instance without config
+    /// # Example
+    /// ```
+    /// # use jsonbank::JsonBank;
+    /// let jsb = JsonBank::new_without_config();
+    /// ```
     pub fn new_without_config() -> Self {
         Self::new(InitConfig {
             host: None,
@@ -333,14 +357,30 @@ impl JsonBank {
         self.send_request("DELETE", self.v1_url(url), None, false, true)
     }
 
-    // set_host - Sets host
+    /// Sets host, this is useful when you want to use your own jsonbank server (Not currently supported)
+    ///
+    /// # Example:
+    /// ```
+    /// # use jsonbank::JsonBank;
+    /// let mut jsb = JsonBank::new_without_config();
+    /// jsb.set_host("https://api.jsonbank.io");
+    /// ```
     pub fn set_host(&mut self, host: &str) {
         self.config.host = host.to_string();
         // update endpoints
         self.endpoints = Self::make_endpoints(&self.config.host);
     }
 
-    // get_document_meta - get public content meta from jsonbank
+    /// Get public content meta from jsonbank
+    /// # Example:
+    /// Using this [json object file from jsonbank](https://api.jsonbank.io/f/jsonbank/sdk-test/index.json)
+    /// ```
+    /// # use jsonbank::JsonBank;
+    /// let jsb = JsonBank::new_without_config();
+    /// let meta = jsb.get_document_meta("jsonbank/sdk-test/index").unwrap();
+    /// // print document id
+    /// println!("{}", meta.id);
+    /// ```
     pub fn get_document_meta(&self, id_or_path: &str) -> Result<DocumentMeta, JsbError> {
         match self.public_request::<JsonObject>(vec!["meta/f", id_or_path]) {
             Ok(res) => {
@@ -351,22 +391,37 @@ impl JsonBank {
         }
     }
 
-    // get_content - get public content from jsonbank
+    /// Get public content from jsonbank
+    /// # Example:
+    /// ```no_run
+    /// use jsonbank::{JsonObject, JsonArray, JsonValue};
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// // get object content
+    /// let data: JsonObject =  jsb.get_content("id_or_path").unwrap();
+    /// println!("{:?}", data);
+    ///
+    /// // get array content
+    /// let data: JsonArray =  jsb.get_content("id_or_path").unwrap();
+    ///
+    /// // get any JsonValue content
+    /// let data: JsonValue =  jsb.get_content("id_or_path").unwrap();
+    /// ```
     pub fn get_content<T: DeserializeOwned>(&self, id_or_path: &str) -> Result<T, JsbError> {
         self.public_request::<T>(vec!["f", id_or_path])
     }
 
-    // get_content_as_string - get public content as string from jsonbank
+    /// Get public content as string from jsonbank
     pub fn get_content_as_string(&self, id_or_path: &str) -> Result<String, JsbError> {
         self.public_request_as_string(vec!["f", id_or_path])
     }
 
-    // get_github_content - get content from github
+    /// Get content from github
     pub fn get_github_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
         self.public_request(vec!["gh", path])
     }
 
-    // get_github_content_as_string - get content as string from github
+    /// Get content as string from github
     pub fn get_github_content_as_string(&self, path: &str) -> Result<String, JsbError> {
         self.public_request_as_string(vec!["gh", path])
     }
@@ -375,7 +430,7 @@ impl JsonBank {
 
 // Auth Implementation
 impl JsonBank {
-    // authenticate - Authenticate user
+    /// Authenticate user using current api key
     pub fn authenticate(&mut self) -> Result<AuthenticatedData, JsbError> {
         match self.read_post_request::<JsonObject>(vec!["authenticate"], None) {
             Ok(res) => {
@@ -398,7 +453,10 @@ impl JsonBank {
         }
     }
 
-    // get_authenticated_data - Get authenticated data
+    /// Get username of authenticated user
+    ///
+    /// **Note:** [authenticate](#method.authenticate) must be called before calling this method.
+    /// Otherwise it will return an error.
     pub fn get_username(&self) -> Result<String, JsbError> {
         match &self.authenticated_data {
             Some(data) => Ok(data.username.clone()),
@@ -409,7 +467,7 @@ impl JsonBank {
         }
     }
 
-    // is_authenticated - Check if user is authenticated
+    /// Check if user is authenticated
     pub fn is_authenticated(&self) -> bool {
         match &self.authenticated_data {
             Some(data) => data.authenticated,
@@ -417,7 +475,7 @@ impl JsonBank {
         }
     }
 
-    // get_own_document_meta - get own content meta from jsonbank
+    /// Get content meta of a document owned by authenticated user
     pub fn get_own_document_meta(&self, path: &str) -> Result<DocumentMeta, JsbError> {
         match self.read_request::<JsonObject>(vec!["meta/file", path], None) {
             Ok(res) => {
@@ -429,23 +487,32 @@ impl JsonBank {
     }
 
 
-    // get_own_content - get own content from jsonbank
+    /// Get json content of a document owned by authenticated user
     pub fn get_own_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
         self.read_request(vec!["file", path], None)
     }
 
-    // get_own_content_as_string - get own content as string from jsonbank
+    /// Get content of a document owned by authenticated user as json string
     pub fn get_own_content_as_string(&self, path: &str) -> Result<String, JsbError> {
         self.read_request_as_string(vec!["file", path], None)
     }
 
-    // has_own_document - check if user has document
-    // This method will try to get document meta and if it fails it will return false
-    pub fn has_own_document(&self, path: &str) -> bool {
-        self.get_own_document_meta(path).is_ok()
+    /// Check if user has document.
+    /// This method will try to get document meta and if it throws the `notFound` error it will return false.
+    pub fn has_own_document(&self, path: &str) -> Result<bool, JsbError> {
+        match self.get_own_document_meta(path) {
+            Ok(_) => Ok(true),
+            Err(err) => {
+                if err.code == "notFound" {
+                    Ok(false)
+                } else {
+                    Err(JsbError::from_any(&err, None))
+                }
+            }
+        }
     }
 
-    // create_document - create a document.
+    /// Create a document.
     pub fn create_document(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
 
         // check if content.project is set
@@ -508,9 +575,10 @@ impl JsonBank {
         }
     }
 
-    // create_document_if_not_exists - create a document if it does not exist
-    // First, it will try to create the document, if it fails and document error code is "name.exists" it will try to get the document
-    // and return it
+    /// Create a document if it does not exist
+    ///
+    /// First, it will try to create the document, if it fails and document error code is `name.exists` it will try to get the document
+    /// and return it
     pub fn create_document_if_not_exists(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
         match self.create_document(content.clone()) {
             Ok(res) => Ok(res),
@@ -538,7 +606,7 @@ impl JsonBank {
     }
 
 
-    // update_own_document - update a document
+    /// Update a document that belongs to the authenticated user.
     pub fn update_own_document(&self, id_or_path: &str, content: String) -> Result<UpdatedDocument, JsbError> {
         // check if content is a valid json
         if !is_valid_json(&content) {
@@ -565,8 +633,8 @@ impl JsonBank {
     }
 
 
-    // upload document - upload a json document
-    // this method will read the file and upload it to jsonbank
+    /// Upload a json document
+    /// This method will read the file contents and  send it to jsonbank using the [create_document](#createdocument)
     pub fn upload_document(&self, doc: UploadDocumentBody) -> Result<NewDocument, JsbError> {
         // project is required
         if doc.project.is_empty() {
@@ -621,7 +689,7 @@ impl JsonBank {
         })
     }
 
-    // delete_document - delete a document
+    /// Delete a document
     pub fn delete_document(&self, path: &str) -> Result<DeletedDocument, JsbError> {
         match self.delete_request::<JsonObject>(vec!["file", path]) {
             Ok(res) => {
@@ -641,7 +709,7 @@ impl JsonBank {
         }
     }
 
-    // create_folder - create a folder
+    /// Create a folder
     pub fn create_folder(&self, data: CreateFolderBody) -> Result<Folder, JsbError> {
         // project is required
         if data.project.is_empty() {
@@ -696,19 +764,20 @@ impl JsonBank {
         }
     }
 
-    // get_folder - get a folder
+    /// Get a folder
     pub fn get_folder(&self, path: &str) -> Result<Folder, JsbError> {
         self.___get_folder(path, false)
     }
 
-    // get_folder_with_stats - get a folder with stats
+    /// Get a folder with statistics count
     pub fn get_folder_with_stats(&self, path: &str) -> Result<Folder, JsbError> {
         self.___get_folder(path, true)
     }
 
-    // create_folder_if_not_exists - create a folder if it does not exist
-    // First, it will try to create the folder, if it fails and folder error code is "name.exists" it will try to get the folder
-    // and return it.
+    /// Create a folder if it does not exist
+    ///
+    /// First, it will try to create the folder, if it fails and folder error code is `name.exists` it will try to get the folder
+    /// and return it.
     pub fn create_folder_if_not_exists(&self, data: CreateFolderBody) -> Result<(Folder, bool), JsbError> {
         match self.create_folder(data.clone()) {
             Ok(res) => Ok((res, false)),
