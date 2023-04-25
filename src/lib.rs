@@ -1,5 +1,83 @@
-// allow unused
-// #![allow(unused)]
+//! # JsonBank SDK for Rust
+//! Links: [github](https://github.com/jsonbankio/rust-sdk) | [crates.io](https://crates.io/crates/jsonbank) | [docs.rs](https://docs.rs/jsonbank/latest/jsonbank)
+//!
+//! ## Initialization
+//! The JsonBank struct can be initialized with or without api keys.
+//! Api Keys are only required when you want to access **protected/private** documents.
+//!
+//! ### Without Api Keys
+//!
+//! Using this [json file from jsonbank](https://api.jsonbank.io/f/jsonbank/sdk-test/index.json)
+//! ```
+//! use jsonbank::{JsonBank, JsonValue};
+//!
+//! fn main() {
+//!     let jsb = JsonBank::new_without_config();
+//!
+//!     // get public content
+//!     let data: JsonValue = jsb.get_content("jsonbank/sdk-test/index").unwrap();
+//!     assert_eq!(data["author"], "jsonbank")
+//! }
+//! ```
+//!
+//! ### With Api Keys
+//! To get your api keys, visit [jsonbank.io](https://jsonbank.io) and create an account.
+//! ```no_run
+//! use jsonbank::{JsonBank, InitConfig, Keys};
+//!
+//! fn main() {
+//!     let mut  jsb = JsonBank::new(InitConfig {
+//!         host: None, // use default host
+//!         keys: Some(Keys {
+//!             public: Some("Your public key".to_string()),
+//!             private: Some("Your private key".to_string()),
+//!         }),
+//!     });
+//!
+//!     // authenticate the api keys (optional)
+//!     if !jsb.authenticate().unwrap() {
+//!         panic!("Authentication failed");
+//!      }
+//! }
+//! ```
+//!
+//! ## Usage
+//! Basic examples to get you started.
+//!
+//! Using these json files:
+//! - [Object Json File](https://jsonbank.io/f/jsonbank/sdk-test/index.json)
+//! - [Array Json File](https://jsonbank.io/gh/jsonbankio/documentation/github-test-array.json) (From github)
+//!
+//! ```
+//! use jsonbank::{JsonBank, JsonValue, JsonObject, JsonArray};
+//!
+//! fn main() {
+//!     /// initialize jsonbank
+//!     let jsb = JsonBank::new_without_config();
+//!
+//!     /// Get json object
+//!     let data: JsonObject = jsb.get_content("jsonbank/sdk-test/index.json").unwrap();
+//!     assert_eq!(data["author"], "jsonbank");
+//!
+//!     /// Get json array
+//!     let data: JsonArray = jsb.get_github_content("jsonbankio/documentation/github-test-array.json").unwrap();
+//!     assert_eq!(data[0], 1);
+//!     assert_eq!(data[1], "MultiType Array");
+//!     assert_eq!(data[2].as_object().unwrap()["name"], "github-test-array.json");
+//!
+//!     /// Get json value (when you don't know the exact type)
+//!     let data: JsonValue = jsb.get_content("jsonbank/sdk-test/index.json").unwrap();
+//!     if data.is_object() {
+//!        assert_eq!(data["author"], "jsonbank");
+//!     } else {
+//!        panic!("Expected json object");
+//!     }
+//! }
+//!```
+//! ## Extra Info
+//! The struct [JsonBank](struct.JsonBank.html) is well documented, so you can check the docs for more info.
+//!
+
 
 extern crate reqwest;
 extern crate serde;
@@ -698,6 +776,14 @@ impl JsonBank {
 
 
     /// Update a document that belongs to the authenticated user.
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let res = jsb.update_own_document("id_or_path", "[new_json_content]".to_string()).unwrap();
+    /// // check if document was updated
+    /// assert_eq!(res.changed, true);
+    /// ```
     pub fn update_own_document(&self, id_or_path: &str, content: String) -> Result<UpdatedDocument, JsbError> {
         // check if content is a valid json
         if !is_valid_json(&content) {
@@ -726,6 +812,22 @@ impl JsonBank {
 
     /// Upload a json document
     /// This method will read the file contents and  send it to jsonbank using the [create_document](#createdocument)
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// use jsonbank::structs::UploadDocumentBody;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let res = jsb.upload_document(UploadDocumentBody {
+    ///     file_path: "upload.json".to_string(),
+    ///     project: "test".to_string(),
+    ///     name: None,
+    ///     folder: None,
+    ///  }).unwrap();
+    ///
+    /// assert_eq!(res.project, "test");
+    /// // both paths should be the same
+    /// assert_eq!(res.name, "upload.json");
+    /// ```
     pub fn upload_document(&self, doc: UploadDocumentBody) -> Result<NewDocument, JsbError> {
         // project is required
         if doc.project.is_empty() {
@@ -781,6 +883,14 @@ impl JsonBank {
     }
 
     /// Delete a document
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let res = jsb.delete_document("id_or_path").unwrap();
+    /// // check if document was deleted
+    /// assert_eq!(res.deleted, true);
+    /// ```
     pub fn delete_document(&self, id_or_path: &str) -> Result<DeletedDocument, JsbError> {
         match self.delete_request::<JsonObject>(vec!["file", id_or_path]) {
             Ok(res) => {
@@ -801,6 +911,22 @@ impl JsonBank {
     }
 
     /// Create a folder
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// use jsonbank::structs::CreateFolderBody;
+    /// # let jsb = JsonBank::new_without_config();
+    ///
+    /// let res = jsb.create_folder(CreateFolderBody {
+    ///     name: "folder_name".to_string(),
+    ///     project: "project".to_string(),
+    ///     // Parent folder is optional
+    ///     folder: None,
+    /// }).unwrap();
+    ///
+    /// assert_eq!(res.name, "folder_name");
+    /// assert_eq!(res.project, "project");
+    /// ```
     pub fn create_folder(&self, data: CreateFolderBody) -> Result<Folder, JsbError> {
         // project is required
         if data.project.is_empty() {
@@ -856,11 +982,28 @@ impl JsonBank {
     }
 
     /// Get a folder
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let res = jsb.get_folder("id_or_path").unwrap();
+    /// println!("Folder name: {}", res.name);
+    /// ```
     pub fn get_folder(&self, id_or_path: &str) -> Result<Folder, JsbError> {
         self.___get_folder(id_or_path, false)
     }
 
     /// Get a folder with statistics count
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let res = jsb.get_folder_with_stats("id_or_path").unwrap();
+    /// println!("Folder name: {}", res.name);
+    /// let stats = res.stats.unwrap();
+    /// println!("Folder documents count: {}", stats.documents);
+    /// println!("Folder folders count: {}", stats.folders);
+    /// ```
     pub fn get_folder_with_stats(&self, id_or_path: &str) -> Result<Folder, JsbError> {
         self.___get_folder(id_or_path, true)
     }
@@ -869,6 +1012,28 @@ impl JsonBank {
     ///
     /// First, it will try to create the folder, if it fails and folder error code is `name.exists` it will try to get the folder
     /// and return it.
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// use jsonbank::structs::CreateFolderBody;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let (res, exists) = jsb.create_folder_if_not_exists(CreateFolderBody {
+    ///    name: "folder_name".to_string(),
+    ///     project: "project".to_string(),
+    ///  // Parent folder is optional
+    ///     folder: None,
+    /// }).unwrap();
+    ///
+    /// // check if folder was created
+    /// if exists {
+    ///    println!("Folder was created");
+    /// } else {
+    ///   println!("Folder already exists");
+    /// }
+    ///
+    /// assert_eq!(res.name, "folder_name");
+    /// assert_eq!(res.project, "project");
+    /// ```
     pub fn create_folder_if_not_exists(&self, data: CreateFolderBody) -> Result<(Folder, bool), JsbError> {
         match self.create_folder(data.clone()) {
             Ok(res) => Ok((res, false)),
