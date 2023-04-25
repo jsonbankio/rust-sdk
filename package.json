@@ -10,6 +10,7 @@
   "scripts": {
     "build": "cargo build",
     "test": "cargo test -- --test-threads=1",
-    "doc": "cargo doc"
+    "doc": "cargo doc",
+    "publish": "npm run test && cargo publish"
   }
 }
