@@ -412,16 +412,45 @@ impl JsonBank {
     }
 
     /// Get public content as string from jsonbank
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let data: String =  jsb.get_content_as_string("id_or_path").unwrap();
+    /// println!("{}", data);
+    /// ```
     pub fn get_content_as_string(&self, id_or_path: &str) -> Result<String, JsbError> {
         self.public_request_as_string(vec!["f", id_or_path])
     }
 
-    /// Get content from github
+    /// Grab a public json file from Github.
+    /// This will read from the `default` branch of the repo.
+    ///
+    /// # Example:
+    /// Using this [json object file from github](https://jsonbank.io/gh/jsonbankio/jsonbank-js/package.json)
+    /// ```
+    /// # use jsonbank::{JsonBank, JsonValue};
+    /// # let jsb = JsonBank::new_without_config();
+    /// let content: JsonValue = jsb.get_github_content("jsonbankio/jsonbank-js/package.json").unwrap();
+    /// assert_eq!(content["name"], "jsonbank");
+    /// assert_eq!(content["author"], "jsonbankio");
+    /// ```
     pub fn get_github_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
         self.public_request(vec!["gh", path])
     }
 
-    /// Get content as string from github
+    /// Grab a public json file from Github as a string.
+    /// Same as `get_github_content` but returns a string instead of a deserialized object.
+    ///
+    /// # Example:
+    /// Using this [json object file from github](https://jsonbank.io/gh/jsonbankio/jsonbank-js/package.json)
+    /// ```
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let content: String = jsb.get_github_content_as_string("jsonbankio/jsonbank-js/package.json").unwrap();
+    /// // string contains prepublishOnly
+    /// assert!(content.contains("prepublishOnly"));
+    /// ```
     pub fn get_github_content_as_string(&self, path: &str) -> Result<String, JsbError> {
         self.public_request_as_string(vec!["gh", path])
     }
@@ -476,8 +505,10 @@ impl JsonBank {
     }
 
     /// Get content meta of a document owned by authenticated user
-    pub fn get_own_document_meta(&self, path: &str) -> Result<DocumentMeta, JsbError> {
-        match self.read_request::<JsonObject>(vec!["meta/file", path], None) {
+    ///
+    /// **Note:** This does not return the content of the document.
+    pub fn get_own_document_meta(&self, id_or_path: &str) -> Result<DocumentMeta, JsbError> {
+        match self.read_request::<JsonObject>(vec!["meta/file", id_or_path], None) {
             Ok(res) => {
                 // convert to DocumentMeta
                 Ok(json_object_to_document_meta(&res))
@@ -488,19 +519,43 @@ impl JsonBank {
 
 
     /// Get json content of a document owned by authenticated user
-    pub fn get_own_content<T: DeserializeOwned>(&self, path: &str) -> Result<T, JsbError> {
-        self.read_request(vec!["file", path], None)
+    /// # Example:
+    /// ```no_run
+    /// use jsonbank::{JsonObject, JsonArray, JsonValue};
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// // get object content
+    /// let data: JsonObject =  jsb.get_own_content("id_or_path").unwrap();
+    /// println!("{:?}", data);
+    ///
+    /// // get array content
+    /// let data: JsonArray =  jsb.get_own_content("id_or_path").unwrap();
+    /// println!("{:?}", data);
+    ///
+    /// // get any JsonValue content
+    /// let data: JsonValue =  jsb.get_own_content("id_or_path").unwrap();
+    /// println!("{:?}", data);
+    /// ```
+    pub fn get_own_content<T: DeserializeOwned>(&self, id_or_path: &str) -> Result<T, JsbError> {
+        self.read_request(vec!["file", id_or_path], None)
     }
 
     /// Get content of a document owned by authenticated user as json string
-    pub fn get_own_content_as_string(&self, path: &str) -> Result<String, JsbError> {
-        self.read_request_as_string(vec!["file", path], None)
+    /// /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let data: String =  jsb.get_own_content_as_string("id_or_path").unwrap();
+    /// println!("{}", data);
+    /// ```
+    pub fn get_own_content_as_string(&self, id_or_path: &str) -> Result<String, JsbError> {
+        self.read_request_as_string(vec!["file", id_or_path], None)
     }
 
     /// Check if user has document.
     /// This method will try to get document meta and if it throws the `notFound` error it will return false.
-    pub fn has_own_document(&self, path: &str) -> Result<bool, JsbError> {
-        match self.get_own_document_meta(path) {
+    pub fn has_own_document(&self, id_or_path: &str) -> Result<bool, JsbError> {
+        match self.get_own_document_meta(id_or_path) {
             Ok(_) => Ok(true),
             Err(err) => {
                 if err.code == "notFound" {
@@ -513,6 +568,21 @@ impl JsonBank {
     }
 
     /// Create a document.
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// use jsonbank::structs::CreateDocumentBody;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let new_doc = jsb.create_document(CreateDocumentBody {
+    ///     name: "test.json".to_string(),
+    ///     project: "test".to_string(),
+    ///     content: "[2, 4, 6]".to_string(),
+    ///     folder: None,
+    ///  }).unwrap();
+    ///
+    /// assert_eq!(new_doc.name, "test.json");
+    /// assert_eq!(new_doc.project, "test");
+    /// ```
     pub fn create_document(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
 
         // check if content.project is set
@@ -579,6 +649,27 @@ impl JsonBank {
     ///
     /// First, it will try to create the document, if it fails and document error code is `name.exists` it will try to get the document
     /// and return it
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// use jsonbank::structs::CreateDocumentBody;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let new_doc = jsb.create_document_if_not_exists(CreateDocumentBody {
+    ///     name: "test.json".to_string(),
+    ///     project: "test".to_string(),
+    ///     content: "[2, 4, 6]".to_string(),
+    ///     folder: None,
+    ///  }).unwrap();
+    ///
+    /// assert_eq!(new_doc.name, "test.json");
+    /// assert_eq!(new_doc.project, "test");
+    ///
+    /// if new_doc.exists {
+    ///    println!("Document already exists");
+    /// } else {
+    ///    println!("Document created");
+    /// }
+    /// ```
     pub fn create_document_if_not_exists(&self, content: CreateDocumentBody) -> Result<NewDocument, JsbError> {
         match self.create_document(content.clone()) {
             Ok(res) => Ok(res),
@@ -690,8 +781,8 @@ impl JsonBank {
     }
 
     /// Delete a document
-    pub fn delete_document(&self, path: &str) -> Result<DeletedDocument, JsbError> {
-        match self.delete_request::<JsonObject>(vec!["file", path]) {
+    pub fn delete_document(&self, id_or_path: &str) -> Result<DeletedDocument, JsbError> {
+        match self.delete_request::<JsonObject>(vec!["file", id_or_path]) {
             Ok(res) => {
                 // convert to DeletedDocument
                 Ok(DeletedDocument {
@@ -745,7 +836,7 @@ impl JsonBank {
     }
 
     //  private _get_folder - get a folder
-    fn ___get_folder(&self, path: &str, include_stats: bool) -> Result<Folder, JsbError> {
+    fn ___get_folder(&self, id_or_path: &str, include_stats: bool) -> Result<Folder, JsbError> {
         // create query
         let query = if include_stats {
             Some(JsonObject::from([
@@ -755,7 +846,7 @@ impl JsonBank {
             None
         };
 
-        match self.read_request::<JsonObject>(vec!["folder", path], query) {
+        match self.read_request::<JsonObject>(vec!["folder", id_or_path], query) {
             Ok(res) => {
                 // convert to Folder
                 Ok(json_object_to_folder(&res))
@@ -765,13 +856,13 @@ impl JsonBank {
     }
 
     /// Get a folder
-    pub fn get_folder(&self, path: &str) -> Result<Folder, JsbError> {
-        self.___get_folder(path, false)
+    pub fn get_folder(&self, id_or_path: &str) -> Result<Folder, JsbError> {
+        self.___get_folder(id_or_path, false)
     }
 
     /// Get a folder with statistics count
-    pub fn get_folder_with_stats(&self, path: &str) -> Result<Folder, JsbError> {
-        self.___get_folder(path, true)
+    pub fn get_folder_with_stats(&self, id_or_path: &str) -> Result<Folder, JsbError> {
+        self.___get_folder(id_or_path, true)
     }
 
     /// Create a folder if it does not exist

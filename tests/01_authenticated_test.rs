@@ -139,14 +139,12 @@ fn create_document() {
 
     assert_eq!(res.deleted, true);
 
-    let content = CreateDocumentBody {
+    let new_doc = match jsb.create_document(CreateDocumentBody {
         name: data.name,
         project: data.project.clone(),
         folder: None,
         content: test_file_content(),
-    };
-
-    let new_doc = match jsb.create_document(content) {
+    }) {
         Ok(doc) => doc,
         Err(err) => panic!("{:?}", err),
     };
