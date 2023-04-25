@@ -35,7 +35,7 @@
 //!     });
 //!
 //!     // authenticate the api keys (optional)
-//!     if !jsb.authenticate().unwrap() {
+//!     if !jsb.authenticate().is_ok() {
 //!         panic!("Authentication failed");
 //!      }
 //! }
