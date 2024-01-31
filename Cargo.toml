@@ -1,6 +1,6 @@
 [package]
 name = "jsonbank"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 homepage = "https://docs.jsonbank.io/sdks/rust"
 repository = "https://github.com/jsonbankio/rust-sdk"
