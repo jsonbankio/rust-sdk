@@ -48,6 +48,10 @@ pub struct DocumentMeta {
     pub project: String,
     /// The path of the document.
     pub path: String,
+    /// Name of the document.
+    pub name: String,
+    /// Optional folder the document belongs to.
+    pub folder_id: Option<String>,
     /// The size of the document.
     pub content_size: ContentSize,
     /// The last time the document was updated.

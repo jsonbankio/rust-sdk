@@ -4,15 +4,23 @@ use crate::structs::{CreateDocumentBody, CreateFolderBody, Folder, FolderStats};
 /// Converts a HashMap to a DocumentMeta struct
 pub fn json_object_to_document_meta(map: &JsonObject) -> DocumentMeta {
     let size = map["contentSize"].as_object().unwrap();
+    // get optional folderId
+    let folder_id = if map.contains_key("folderId") {
+        Some(map["folderId"].as_str().unwrap().to_string())
+    } else {
+        None
+    };
 
     DocumentMeta {
         id: map["id"].as_str().unwrap().to_string(),
         project: map["project"].as_str().unwrap().to_string(),
+        name: map["name"].as_str().unwrap().to_string(),
         path: map["path"].as_str().unwrap().to_string(),
         content_size: ContentSize {
             number: size["number"].as_u64().unwrap(),
             string: size["string"].as_str().unwrap().to_string(),
         },
+        folder_id,
         updated_at: map["updatedAt"].as_str().unwrap().to_string(),
         created_at: map["createdAt"].as_str().unwrap().to_string(),
     }
