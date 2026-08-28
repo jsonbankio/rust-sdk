@@ -5,7 +5,20 @@ mod functions;
 use std::time::{SystemTime, UNIX_EPOCH};
 use jsonbank::{JsonBank, InitConfig, Keys, JsonObject, JSONBANK};
 use functions::*;
-use jsonbank::structs::{CreateDocumentBody, CreateFolderBody, Folder, UploadDocumentBody};
+use jsonbank::structs::{
+    CreateDocumentBody, CreateFolderBody, Folder, ListParams, PaginatedDocuments, PaginatedFolders,
+    ScanProjectParams, UploadDocumentBody,
+};
+
+// document_ids - collects the ids of a page of documents
+fn document_ids(documents: &PaginatedDocuments) -> Vec<String> {
+    documents.data.iter().map(|document| document.id.clone()).collect()
+}
+
+// folder_ids - collects the ids of a page of folders
+fn folder_ids(folders: &PaginatedFolders) -> Vec<String> {
+    folders.data.iter().map(|folder| folder.id.clone()).collect()
+}
 
 // test_file_content - returns test file content
 fn test_file_content() -> String {
@@ -364,4 +377,178 @@ fn create_folder_if_not_exists() {
     if res.name != "folder" || res.project != data.project {
         panic!("New folder data mismatch");
     }
+}
+#[test]
+fn scan_project() {
+    let (jsb, data) = init();
+
+    let res = match jsb.scan_project(&data.project, ScanProjectParams::default()) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(res.project.slug, data.project);
+    assert!(res.project.access == "public" || res.project.access == "private");
+
+    // no folder was requested, so the project root was listed
+    assert_eq!(res.folder.is_some(), false);
+
+    // both lists are paginated
+    assert_eq!(res.documents.meta.page, 1);
+    assert_eq!(res.folders.meta.page, 1);
+    assert!(res.documents.meta.per_page > 0);
+    assert!(res.folders.meta.per_page > 0);
+
+    // index.json lives at the project root
+    assert!(res.documents.data.iter().any(|doc| doc.name == "index"));
+
+    // the "folder" folder lives at the project root
+    assert!(res.folders.data.iter().any(|folder| folder.name == "folder"));
+}
+
+#[test]
+fn scan_project_with_folder() {
+    let (jsb, data) = init();
+
+    let params = ScanProjectParams {
+        folder: Some("folder".to_string()),
+        ..Default::default()
+    };
+
+    let res = match jsb.scan_project(&data.project, params) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    // a folder was requested, so it is echoed back
+    let folder = match res.folder {
+        Some(ref folder) => folder,
+        None => panic!("Folder must be returned when a folder is listed"),
+    };
+
+    assert_eq!(folder.path, "folder");
+
+    // every document in a folder is tagged with its folder id
+    for document in &res.documents.data {
+        assert_eq!(document.folder_id, Some(folder.id.clone()));
+    }
+
+    // listing by id must match listing by path
+    let by_id = match jsb.scan_project(&data.project, ScanProjectParams {
+        folder: Some(folder.id.clone()),
+        ..Default::default()
+    }) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(by_id.folder.unwrap().id, folder.id);
+    assert_eq!(document_ids(&by_id.documents), document_ids(&res.documents));
+}
+
+#[test]
+fn list_documents() {
+    let (jsb, data) = init();
+
+    let res = match jsb.list_documents(&data.project, ListParams::default()) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(res.project.slug, data.project);
+
+    // documents must match the ones scan_project returns
+    let scan = match jsb.scan_project(&data.project, ScanProjectParams::default()) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(document_ids(&res.documents), document_ids(&scan.documents));
+    assert_eq!(res.documents.meta.total, scan.documents.meta.total);
+}
+
+#[test]
+fn list_folders() {
+    let (jsb, data) = init();
+
+    let res = match jsb.list_folders(&data.project, ListParams::default()) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(res.project.slug, data.project);
+
+    // folders must match the ones scan_project returns
+    let scan = match jsb.scan_project(&data.project, ScanProjectParams::default()) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    assert_eq!(folder_ids(&res.folders), folder_ids(&scan.folders));
+    assert_eq!(res.folders.meta.total, scan.folders.meta.total);
+}
+
+#[test]
+fn list_documents_paginated() {
+    let (jsb, data) = init();
+
+    let params = ListParams { per_page: Some(1), ..Default::default() };
+
+    let res = match jsb.list_documents(&data.project, params) {
+        Ok(res) => res,
+        Err(err) => panic!("{:?}", err),
+    };
+
+    let meta = &res.documents.meta;
+
+    assert_eq!(meta.page, 1);
+    assert_eq!(meta.per_page, 1);
+    assert!(res.documents.data.len() <= 1);
+
+    // with one document per page there are as many pages as documents
+    assert_eq!(meta.last_page, meta.total);
+}
+
+#[test]
+fn list_documents_sorted() {
+    let (jsb, data) = init();
+
+    let sorted = |order: &str| {
+        match jsb.list_documents(&data.project, ListParams {
+            sort: Some("createdAt".to_string()),
+            order: Some(order.to_string()),
+            ..Default::default()
+        }) {
+            Ok(res) => document_ids(&res.documents),
+            Err(err) => panic!("{:?}", err),
+        }
+    };
+
+    let asc = sorted("asc");
+    let mut desc = sorted("desc");
+    desc.reverse();
+
+    assert_eq!(asc, desc);
+}
+
+#[test]
+fn list_documents_with_bad_sort() {
+    let (jsb, data) = init();
+
+    let params = ListParams { sort: Some("nope".to_string()), ..Default::default() };
+
+    match jsb.list_documents(&data.project, params) {
+        Ok(_) => panic!("An unknown sort field must be rejected"),
+        Err(err) => assert_eq!(err.code, "sort.invalid"),
+    };
+}
+
+#[test]
+fn scan_project_with_unknown_project() {
+    let (jsb, _data) = init();
+
+    match jsb.scan_project("not-a-real-project", ScanProjectParams::default()) {
+        Ok(_) => panic!("An unknown project must be rejected"),
+        Err(err) => assert_eq!(err.code, "project.notFound"),
+    };
 }

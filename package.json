@@ -12,5 +12,8 @@
     "test": "cargo test -- --test-threads=1",
     "doc": "cargo doc",
     "publish": "npm run test && cargo publish"
+  },
+  "dependencies": {
+    "npm-check-updates": "^22.2.1"
   }
 }

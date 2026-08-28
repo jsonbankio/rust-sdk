@@ -1,0 +1,15 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "jsonbank",
+      "dependencies": {
+        "npm-check-updates": "^22.2.1",
+      },
+    },
+  },
+  "packages": {
+    "npm-check-updates": ["npm-check-updates@22.2.1", "", { "bin": { "npm-check-updates": "build/cli.js", "ncu": "build/cli.js" } }, "sha512-mGdIJfhtg+q0BzhbOpbOL73zhMZlgBQMG4wnBwPMMD5k96028UCuV0753YeSYk9odoh7HWK6/cY69bWxT7o+yg=="],
+  }
+}

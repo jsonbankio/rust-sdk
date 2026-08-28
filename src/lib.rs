@@ -1008,6 +1008,103 @@ impl JsonBank {
         self.___get_folder(id_or_path, true)
     }
 
+    /// List documents and folders in a project, one level deep.
+    ///
+    /// Set `params.folder` (an id or a path) to scan inside a folder, leave it
+    /// as `None` to scan the project root. Both lists paginate independently of
+    /// each other, hence the separate page params.
+    ///
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// use jsonbank::structs::ScanProjectParams;
+    /// # let jsb = JsonBank::new_without_config();
+    /// // scan the project root
+    /// let res = jsb.scan_project("project", ScanProjectParams::default()).unwrap();
+    /// println!("Documents: {}", res.documents.meta.total);
+    /// println!("Folders: {}", res.folders.meta.total);
+    ///
+    /// // scan inside a folder
+    /// let res = jsb.scan_project("project", ScanProjectParams {
+    ///     folder: Some("folder_name".to_string()),
+    ///     ..Default::default()
+    /// }).unwrap();
+    /// ```
+    pub fn scan_project(&self, project: &str, params: ScanProjectParams) -> Result<ScanProjectResponse, JsbError> {
+        let query = scan_project_params_to_query(&params);
+
+        match self.read_request::<JsonObject>(vec!["list", project], query) {
+            Ok(res) => {
+                // convert to ScanProjectResponse
+                Ok(json_object_to_scan_project(&res))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    /// List documents in a project, one level deep.
+    ///
+    /// Same as [scan_project](#method.scan_project) without the folders, so
+    /// nothing you don't need is queried or paged. Content is not included,
+    /// fetch it with [get_own_content](#method.get_own_content).
+    ///
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// use jsonbank::structs::ListParams;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let res = jsb.list_documents("project", ListParams {
+    ///     per_page: Some(50),
+    ///     ..Default::default()
+    /// }).unwrap();
+    ///
+    /// for document in &res.documents.data {
+    ///     println!("{} {}", document.path, document.content_size.string);
+    /// }
+    /// ```
+    pub fn list_documents(&self, project: &str, params: ListParams) -> Result<ListDocumentsResponse, JsbError> {
+        let query = list_params_to_query(&params);
+
+        match self.read_request::<JsonObject>(vec!["list", project, "documents"], query) {
+            Ok(res) => {
+                // convert to ListDocumentsResponse
+                Ok(json_object_to_list_documents(&res))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    /// List folders in a project, one level deep.
+    ///
+    /// Same as [scan_project](#method.scan_project) without the documents.
+    ///
+    /// # Example:
+    /// ```no_run
+    /// # use jsonbank::JsonBank;
+    /// use jsonbank::structs::ListParams;
+    /// # let jsb = JsonBank::new_without_config();
+    /// let res = jsb.list_folders("project", ListParams {
+    ///     sort: Some("createdAt".to_string()),
+    ///     order: Some("desc".to_string()),
+    ///     ..Default::default()
+    /// }).unwrap();
+    ///
+    /// for folder in &res.folders.data {
+    ///     println!("{}", folder.path);
+    /// }
+    /// ```
+    pub fn list_folders(&self, project: &str, params: ListParams) -> Result<ListFoldersResponse, JsbError> {
+        let query = list_params_to_query(&params);
+
+        match self.read_request::<JsonObject>(vec!["list", project, "folders"], query) {
+            Ok(res) => {
+                // convert to ListFoldersResponse
+                Ok(json_object_to_list_folders(&res))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
     /// Create a folder if it does not exist
     ///
     /// First, it will try to create the folder, if it fails and folder error code is `name.exists` it will try to get the folder

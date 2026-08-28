@@ -182,3 +182,151 @@ pub struct UpdatedDocument {
     /// if a document is not updated, it means the content is the same.
     pub changed: bool,
 }
+
+/// Pagination information returned alongside every paginated list.
+#[derive(Debug)]
+pub struct PaginationMeta {
+    /// The page that was returned.
+    pub page: i32,
+    /// The number of results per page.
+    pub per_page: i32,
+    /// The total number of results across every page.
+    pub total: i32,
+    /// The last page available.
+    pub last_page: i32,
+}
+
+/// A single page of documents.
+#[derive(Debug)]
+pub struct PaginatedDocuments {
+    /// The documents on this page.
+    pub data: Vec<DocumentMeta>,
+    /// The pagination information for this list.
+    pub meta: PaginationMeta,
+}
+
+/// A single page of folders.
+#[derive(Debug)]
+pub struct PaginatedFolders {
+    /// The folders on this page.
+    pub data: Vec<Folder>,
+    /// The pagination information for this list.
+    pub meta: PaginationMeta,
+}
+
+/// The project a listing belongs to.
+#[derive(Debug)]
+pub struct ListedProject {
+    /// The slug of the project.
+    pub slug: String,
+    /// The title of the project.
+    pub title: String,
+    /// Either `public` or `private`.
+    pub access: String,
+}
+
+/// The folder a listing was scoped to.
+#[derive(Debug)]
+pub struct ListedFolder {
+    /// The id of the folder.
+    pub id: String,
+    /// The name of the folder.
+    pub name: String,
+    /// The path of the folder.
+    pub path: String,
+    /// The parent folder, when the listed folder is nested.
+    pub parent_folder: Option<String>,
+}
+
+/// Response of the `scan_project` function.
+#[derive(Debug)]
+pub struct ScanProjectResponse {
+    /// The project that was listed.
+    pub project: ListedProject,
+    /// The folder that was listed.
+    /// `None` when the project root was listed.
+    pub folder: Option<ListedFolder>,
+    /// The page of documents.
+    pub documents: PaginatedDocuments,
+    /// The page of folders.
+    pub folders: PaginatedFolders,
+}
+
+/// Response of the `list_documents` function.
+#[derive(Debug)]
+pub struct ListDocumentsResponse {
+    /// The project that was listed.
+    pub project: ListedProject,
+    /// The folder that was listed.
+    /// `None` when the project root was listed.
+    pub folder: Option<ListedFolder>,
+    /// The page of documents.
+    pub documents: PaginatedDocuments,
+}
+
+/// Response of the `list_folders` function.
+#[derive(Debug)]
+pub struct ListFoldersResponse {
+    /// The project that was listed.
+    pub project: ListedProject,
+    /// The folder that was listed.
+    /// `None` when the project root was listed.
+    pub folder: Option<ListedFolder>,
+    /// The page of folders.
+    pub folders: PaginatedFolders,
+}
+
+/// Query params of the `scan_project` function.
+///
+/// Fields left as `None` are not sent, so the server applies its own defaults.
+/// Both lists paginate independently of each other, hence the separate pages.
+///
+/// Use `..Default::default()` to only set what you need:
+/// ```
+/// # use jsonbank::structs::ScanProjectParams;
+/// let params = ScanProjectParams {
+///     folder: Some("locales".to_string()),
+///     ..Default::default()
+/// };
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct ScanProjectParams {
+    /// Folder to list, by id or by path. `None` lists the project root.
+    pub folder: Option<String>,
+    /// The page of documents to return.
+    pub documents_page: Option<i32>,
+    /// Documents per page, up to 1000.
+    pub documents_per_page: Option<i32>,
+    /// The page of folders to return.
+    pub folders_page: Option<i32>,
+    /// Folders per page, up to 1000.
+    pub folders_per_page: Option<i32>,
+    /// Field both lists are sorted by: `name`, `createdAt` or `updatedAt`.
+    pub sort: Option<String>,
+    /// Sort direction: `asc` or `desc`.
+    pub order: Option<String>,
+}
+
+/// Query params of the `list_documents` and `list_folders` functions.
+///
+/// Fields left as `None` are not sent, so the server applies its own defaults.
+/// Only one list is returned, so there is only one page to ask for.
+///
+/// Use `..Default::default()` to only set what you need:
+/// ```
+/// # use jsonbank::structs::ListParams;
+/// let params = ListParams { per_page: Some(50), ..Default::default() };
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct ListParams {
+    /// Folder to list, by id or by path. `None` lists the project root.
+    pub folder: Option<String>,
+    /// The page to return.
+    pub page: Option<i32>,
+    /// Results per page, up to 1000.
+    pub per_page: Option<i32>,
+    /// Field to sort by: `name`, `createdAt` or `updatedAt`.
+    pub sort: Option<String>,
+    /// Sort direction: `asc` or `desc`.
+    pub order: Option<String>,
+}
